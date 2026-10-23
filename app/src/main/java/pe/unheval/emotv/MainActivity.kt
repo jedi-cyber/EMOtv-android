@@ -1,47 +1,39 @@
 package pe.unheval.emotv
 
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.activity.viewModels
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import pe.unheval.emotv.ui.navigation.EmotvNavHost
+import pe.unheval.emotv.ui.startup.StartupUiState
+import pe.unheval.emotv.ui.startup.StartupViewModel
 import pe.unheval.emotv.ui.theme.EMOtvTheme
 
 class MainActivity : ComponentActivity() {
+
+    private val startupViewModel: StartupViewModel by viewModels { StartupViewModel.Factory }
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // El logo del sistema se mantiene mientras se consulta GET /mobile/status.
+        splashScreen.setKeepOnScreenCondition {
+            !startupViewModel.firstCheckDone &&
+                startupViewModel.uiState.value == StartupUiState.Loading
+        }
+        // Fondo claro siempre: barras del sistema con iconos oscuros.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+        )
         setContent {
             EMOtvTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                EmotvNavHost(startupViewModel = startupViewModel)
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    EMOtvTheme {
-        Greeting("Android")
     }
 }
