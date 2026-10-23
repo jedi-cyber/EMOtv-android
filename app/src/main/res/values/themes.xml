@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.EMOtv" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.EMOtv" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/emotv_surface</item>
+    </style>
+
+    <!-- Pantalla de carga del sistema (androidx.core:core-splashscreen, desde API 26). -->
+    <style name="Theme.EMOtv.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/emotv_navy</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_emotv_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.EMOtv</item>
+    </style>
 </resources>

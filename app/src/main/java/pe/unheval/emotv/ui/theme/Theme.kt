@@ -1,58 +1,56 @@
 package pe.unheval.emotv.ui.theme
 
-import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+// DESIGN.md no define tema oscuro y pide mantener el azul marino, el violeta y el fondo
+// cálido, así que no hay esquema oscuro ni color dinámico del sistema.
+private val EmotvColorScheme = lightColorScheme(
+    primary = EmotvColors.Primary,
+    onPrimary = EmotvColors.OnPrimary,
+    primaryContainer = EmotvColors.PrimarySoft,
+    onPrimaryContainer = EmotvColors.PrimaryDeep,
+    inversePrimary = EmotvColors.FrameOnDark,
+    secondary = EmotvColors.Navy,
+    onSecondary = EmotvColors.OnDark,
+    secondaryContainer = EmotvColors.NeutralSoft,
+    onSecondaryContainer = EmotvColors.Charcoal,
+    tertiary = EmotvColors.NavyMid,
+    onTertiary = EmotvColors.OnDark,
+    tertiaryContainer = EmotvColors.NeutralSoft,
+    onTertiaryContainer = EmotvColors.Charcoal,
+    background = EmotvColors.Surface,
+    onBackground = EmotvColors.Ink,
+    surface = EmotvColors.Canvas,
+    onSurface = EmotvColors.Ink,
+    surfaceVariant = EmotvColors.NeutralSoft,
+    onSurfaceVariant = EmotvColors.Slate,
+    surfaceTint = EmotvColors.Canvas,
+    surfaceBright = EmotvColors.Canvas,
+    surfaceDim = EmotvColors.Surface,
+    surfaceContainerLowest = EmotvColors.Canvas,
+    surfaceContainerLow = EmotvColors.Canvas,
+    surfaceContainer = EmotvColors.Canvas,
+    surfaceContainerHigh = EmotvColors.Canvas,
+    surfaceContainerHighest = EmotvColors.NeutralSoft,
+    inverseSurface = EmotvColors.Navy,
+    inverseOnSurface = EmotvColors.OnDark,
+    outline = EmotvColors.HairlineStrong,
+    outlineVariant = EmotvColors.Hairline,
+    error = EmotvColors.Error,
+    onError = EmotvColors.OnPrimary,
+    errorContainer = EmotvColors.ErrorSoft,
+    onErrorContainer = EmotvColors.Error,
+    scrim = EmotvColors.NavyDeep,
 )
 
 @Composable
-fun EMOtvTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
-) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-
+fun EMOtvTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = EmotvColorScheme,
         typography = Typography,
-        content = content
+        shapes = Shapes,
+        content = content,
     )
 }
