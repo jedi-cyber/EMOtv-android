@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<font-family xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Regular (400) -->
+    <font
+        android:fontStyle="normal"
+        android:fontWeight="400"
+        android:font="@font/atkinson_regular" />
+
+    <!-- SemiBold (600) -->
+    <font
+        android:fontStyle="normal"
+        android:fontWeight="600"
+        android:font="@font/atkinson_semibold" />
+
+    <!-- Bold (700) -->
+    <font
+        android:fontStyle="normal"
+        android:fontWeight="700"
+        android:font="@font/atkinson_bold" />
+</font-family>
