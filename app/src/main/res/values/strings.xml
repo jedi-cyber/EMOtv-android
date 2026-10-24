@@ -1,3 +1,64 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="es">
     <string name="app_name">EMOtv</string>
+    <string name="logo_description">Logo de EMOtv</string>
+
+    <string name="action_retry">Reintentar</string>
+    <string name="action_logout">Cerrar sesión</string>
+
+    <!-- Pantalla de carga -->
+    <string name="startup_checking">Comprobando la conexión con el servidor…</string>
+    <string name="startup_offline_title">No hay conexión con el servidor</string>
+    <string name="startup_offline_body">Revisa que la tablet esté conectada a internet y vuelve a intentarlo.</string>
+    <string name="startup_server_error_title">El servidor no respondió como se esperaba</string>
+    <string name="startup_server_error_body">Espera un momento y vuelve a intentarlo. Si sigue igual, avisa a quien administra EMOtv.</string>
+    <string name="startup_login_unavailable_title">El inicio de sesión no está disponible</string>
+    <string name="startup_login_unavailable_body">El servidor todavía no está listo para iniciar sesión. Avisa a quien administra EMOtv y vuelve a intentarlo.</string>
+    <string name="startup_update_title">Actualiza EMOtv</string>
+    <string name="startup_update_body">Esta versión (%1$s) ya no es compatible con el servidor. Instala la versión %2$s o una más reciente para continuar.</string>
+    <string name="startup_check_again">Volver a comprobar</string>
+
+    <!-- Inicio de sesión -->
+    <string name="login_title">Iniciar sesión</string>
+    <string name="login_subtitle">Usa tu cuenta de Usuario o Docente de EMOtv, la misma de la web.</string>
+    <string name="login_email">Correo</string>
+    <string name="login_password">Contraseña</string>
+    <string name="login_show_password">Mostrar</string>
+    <string name="login_hide_password">Ocultar</string>
+    <string name="login_show_password_description">Mostrar contraseña</string>
+    <string name="login_hide_password_description">Ocultar contraseña</string>
+    <string name="login_submit">Iniciar sesión</string>
+    <string name="login_email_required">Escribe tu correo.</string>
+    <string name="login_email_invalid">Escribe un correo válido, por ejemplo nombre@dominio.com.</string>
+    <string name="login_password_required">Escribe tu contraseña.</string>
+    <string name="login_error_network">No hay conexión con el servidor</string>
+    <string name="login_error_network_body">Revisa la conexión a internet de la tablet y vuelve a intentarlo.</string>
+    <string name="login_error_too_many">Demasiados intentos fallidos</string>
+    <string name="login_error_generic">No se pudo iniciar sesión</string>
+    <string name="login_error_generic_body">Vuelve a intentarlo en un momento.</string>
+    <plurals name="login_retry_after_minutes">
+        <item quantity="one">Podrás intentarlo de nuevo en %d minuto.</item>
+        <item quantity="many">Podrás intentarlo de nuevo en %d minutos.</item>
+        <item quantity="other">Podrás intentarlo de nuevo en %d minutos.</item>
+    </plurals>
+
+    <!-- Cambio de contraseña obligatorio -->
+    <string name="password_change_title">Cambia tu contraseña</string>
+    <string name="password_change_subtitle">Tu cuenta tiene una contraseña provisional.</string>
+    <string name="password_change_default_message">Debes cambiar tu contraseña antes de continuar</string>
+    <string name="password_change_body">Ingresa a la web de EMOtv, cambia tu contraseña y luego vuelve a iniciar sesión aquí con la contraseña nueva.</string>
+    <string name="password_change_back">Volver a iniciar sesión</string>
+
+    <!-- PIN -->
+    <string name="pin_title">Define tu PIN</string>
+    <string name="pin_subtitle">La tablet lo pedirá para salir del modo sesión. Usa de 4 a 6 dígitos que solo tú conozcas.</string>
+    <string name="pin_label">PIN</string>
+    <string name="pin_confirm_label">Repite el PIN</string>
+    <string name="pin_error_length">El PIN debe tener de 4 a 6 dígitos.</string>
+    <string name="pin_error_mismatch">Los dos PIN no coinciden.</string>
+    <string name="pin_submit">Guardar PIN</string>
+
+    <!-- Inicio -->
+    <string name="home_title">Inicio</string>
+    <string name="home_signed_in_as">Sesión iniciada como %1$s (%2$s).</string>
+    <string name="home_summary_pending">El resumen del día aparecerá aquí.</string>
 </resources>

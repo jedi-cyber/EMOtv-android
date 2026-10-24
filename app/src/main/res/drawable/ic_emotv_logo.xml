@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Logo provisional de EMOtv: el encuadre de cámara de DESIGN.md (cuatro marcas en L)
+     alrededor de un punto. Pensado para fondo azul marino; sirve de icono del splash. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M36,48 L36,36 L48,36 M60,36 L72,36 L72,48 M72,60 L72,72 L60,72 M48,72 L36,72 L36,60"
+        android:strokeColor="@color/emotv_frame_on_dark"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:fillColor="@color/emotv_on_dark"
+        android:pathData="M54,46 A8,8 0 1,1 54,62 A8,8 0 1,1 54,46 Z" />
+</vector>
