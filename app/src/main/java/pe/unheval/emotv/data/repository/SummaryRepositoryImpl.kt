@@ -4,7 +4,6 @@ import pe.unheval.emotv.data.remote.EmotvApi
 import pe.unheval.emotv.data.remote.ParticipantDto
 import pe.unheval.emotv.data.remote.SessionDto
 import pe.unheval.emotv.data.remote.SummaryDto
-import pe.unheval.emotv.data.remote.apiCall
 import pe.unheval.emotv.domain.model.AuthUser
 import pe.unheval.emotv.domain.model.DashboardSummary
 import pe.unheval.emotv.domain.model.GuidedPhase
@@ -14,7 +13,6 @@ import pe.unheval.emotv.domain.model.Participant
 import pe.unheval.emotv.domain.model.ParticipantKind
 import pe.unheval.emotv.domain.model.SessionState
 import pe.unheval.emotv.domain.model.SessionSummary
-import pe.unheval.emotv.domain.model.isAccessRejected
 import pe.unheval.emotv.domain.repository.AuthRepository
 import pe.unheval.emotv.domain.repository.SummaryRepository
 import java.time.Instant
@@ -29,18 +27,7 @@ class SummaryRepositoryImpl(
 ) : SummaryRepository {
 
     override suspend fun fetchSummary(date: LocalDate, utcOffsetMinutes: Int): Outcome<DashboardSummary> =
-        authorizedCall { api.summary(date.toString(), utcOffsetMinutes).toDomain() }
-
-    /** Si el token de acceso venció, lo renueva una vez y repite la llamada. */
-    private suspend fun <T> authorizedCall(block: suspend () -> T): Outcome<T> {
-        val token = authRepository.currentAccessToken()
-        val first = apiCall(block)
-        if (first !is Outcome.Failure || !first.error.isAccessRejected()) return first
-        return when (val renewed = authRepository.renewAccess(token)) {
-            is Outcome.Failure -> renewed
-            is Outcome.Success -> apiCall(block)
-        }
-    }
+        authRepository.authorizedCall { api.summary(date.toString(), utcOffsetMinutes).toDomain() }
 }
 
 private fun SummaryDto.toDomain() = DashboardSummary(

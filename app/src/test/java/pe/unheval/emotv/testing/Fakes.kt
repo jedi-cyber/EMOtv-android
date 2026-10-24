@@ -1,5 +1,10 @@
 package pe.unheval.emotv.testing
 
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestDispatcher
@@ -9,26 +14,45 @@ import kotlinx.coroutines.test.setMain
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Protocol
 import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.ResponseBody
 import okhttp3.ResponseBody.Companion.toResponseBody
+import okio.Buffer
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 import pe.unheval.emotv.data.local.PinHasher
 import pe.unheval.emotv.data.local.ValueStore
 import pe.unheval.emotv.data.remote.AccessTokenHolder
+import pe.unheval.emotv.data.remote.CalibrationDto
+import pe.unheval.emotv.data.remote.ConfirmRequestDto
+import pe.unheval.emotv.data.remote.ConfirmationDto
 import pe.unheval.emotv.data.remote.EmotvApi
+import pe.unheval.emotv.data.remote.FrameResultDto
 import pe.unheval.emotv.data.remote.LoginRequestDto
 import pe.unheval.emotv.data.remote.ParticipantDto
+import pe.unheval.emotv.data.remote.PhaseDto
+import pe.unheval.emotv.data.remote.ProtocolDto
+import pe.unheval.emotv.data.remote.QuestionnaireAnswersDto
+import pe.unheval.emotv.data.remote.QuestionnaireDto
 import pe.unheval.emotv.data.remote.RefreshRequestDto
 import pe.unheval.emotv.data.remote.ServicesDto
 import pe.unheval.emotv.data.remote.SessionDto
+import pe.unheval.emotv.data.remote.SessionParticipantDto
+import pe.unheval.emotv.data.remote.SessionStepDto
+import pe.unheval.emotv.data.remote.StartSessionDto
+import pe.unheval.emotv.data.remote.StartSessionRequestDto
 import pe.unheval.emotv.data.remote.StatusDto
+import pe.unheval.emotv.data.remote.StimulusDto
+import pe.unheval.emotv.data.remote.StopRequestDto
 import pe.unheval.emotv.data.remote.SummaryDto
 import pe.unheval.emotv.data.remote.TokenResponseDto
 import pe.unheval.emotv.data.remote.UserDto
 import pe.unheval.emotv.data.repository.AuthRepositoryImpl
 import pe.unheval.emotv.data.repository.PinRepositoryImpl
+import pe.unheval.emotv.data.repository.SessionRepositoryImpl
 import pe.unheval.emotv.data.repository.StatusRepositoryImpl
 import pe.unheval.emotv.data.repository.SummaryRepositoryImpl
+import pe.unheval.emotv.domain.repository.FrameSource
 import retrofit2.HttpException
 import retrofit2.Response
 import java.io.IOException
@@ -72,7 +96,159 @@ class FakeEmotvApi : EmotvApi {
         summaryRequests += date to utcOffsetMinutes
         return summary.invoke(date, utcOffsetMinutes)
     }
+
+    // --- Sesión con participante ---
+
+    var protocols: (participantId: String) -> List<ProtocolDto> = { listOf(protocolDto()) }
+    var startSession: (StartSessionRequestDto) -> StartSessionDto = { startSessionDto() }
+    var confirm: (sessionId: String, ConfirmRequestDto) -> SessionStepDto = { id, _ -> stepDto(id, "pre_questionnaire") }
+    var next: (sessionId: String) -> SessionStepDto = { stepDto(it, "finished") }
+    var submitQuestionnaire: (sessionId: String, moment: String, QuestionnaireAnswersDto) -> PhaseDto =
+        { _, _, _ -> PhaseDto("calibration") }
+    var advance: (sessionId: String) -> PhaseDto = { PhaseDto("calibration") }
+    var startCalibration: (sessionId: String) -> PhaseDto = { PhaseDto("calibration") }
+    var sendFrame: (sessionId: String, jpeg: ByteArray) -> FrameResultDto = { _, _ -> FrameResultDto("stimuli") }
+    var stop: (sessionId: String, StopRequestDto) -> PhaseDto = { _, _ -> PhaseDto("stopped") }
+    var stimulusImage: (url: String) -> ByteArray = { byteArrayOf(1, 2, 3) }
+
+    val protocolRequests = mutableListOf<String>()
+    val startRequests = mutableListOf<StartSessionRequestDto>()
+    val confirmRequests = mutableListOf<Pair<String, ConfirmRequestDto>>()
+    val questionnaireRequests = mutableListOf<Pair<String, QuestionnaireAnswersDto>>()
+    val stopRequests = mutableListOf<Pair<String, StopRequestDto>>()
+    val imageRequests = mutableListOf<String>()
+
+    /** Copia de cada cuadro recibido, solo para comprobar qué llegó al «servidor». */
+    val receivedFrames = mutableListOf<ByteArray>()
+    var frameAttempts = 0
+    var nextCalls = 0
+    var advanceCalls = 0
+    var calibrationCalls = 0
+
+    override suspend fun protocols(participantId: String): List<ProtocolDto> {
+        protocolRequests += participantId
+        return protocols.invoke(participantId)
+    }
+
+    override suspend fun startSession(body: StartSessionRequestDto): StartSessionDto {
+        startRequests += body
+        return startSession.invoke(body)
+    }
+
+    override suspend fun confirm(sessionId: String, body: ConfirmRequestDto): SessionStepDto {
+        confirmRequests += sessionId to body
+        return confirm.invoke(sessionId, body)
+    }
+
+    override suspend fun next(sessionId: String): SessionStepDto {
+        nextCalls++
+        return next.invoke(sessionId)
+    }
+
+    override suspend fun submitQuestionnaire(
+        sessionId: String,
+        moment: String,
+        body: QuestionnaireAnswersDto,
+    ): PhaseDto {
+        questionnaireRequests += moment to body
+        return submitQuestionnaire.invoke(sessionId, moment, body)
+    }
+
+    override suspend fun advance(sessionId: String): PhaseDto {
+        advanceCalls++
+        return advance.invoke(sessionId)
+    }
+
+    override suspend fun startCalibration(sessionId: String): PhaseDto {
+        calibrationCalls++
+        return startCalibration.invoke(sessionId)
+    }
+
+    override suspend fun sendFrame(sessionId: String, jpeg: RequestBody): FrameResultDto {
+        frameAttempts++
+        val bytes = Buffer().also(jpeg::writeTo).readByteArray()
+        val result = sendFrame.invoke(sessionId, bytes)
+        receivedFrames += bytes
+        return result
+    }
+
+    override suspend fun stop(sessionId: String, body: StopRequestDto): PhaseDto {
+        stopRequests += sessionId to body
+        return stop.invoke(sessionId, body)
+    }
+
+    override suspend fun stimulusImage(imageUrl: String): ResponseBody {
+        imageRequests += imageUrl
+        return stimulusImage.invoke(imageUrl).toResponseBody("image/png".toMediaType())
+    }
 }
+
+/**
+ * Cámara falsa: cada cuadro es un arreglo nuevo con forma de JPEG. Guarda la referencia
+ * para comprobar que, tras enviarlo, quedó borrado.
+ */
+class FakeFrameSource : FrameSource {
+    val captured = mutableListOf<ByteArray>()
+    val qualities = mutableListOf<Int>()
+
+    override suspend fun capture(jpegQuality: Int): ByteArray {
+        qualities += jpegQuality
+        return byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x11, 0x22, 0x33, 0xFF.toByte(), 0xD9.toByte())
+            .also { captured += it }
+    }
+}
+
+fun protocolDto(id: String = "protocolo-1", name: String = "Secuencia móvil", forChildren: Boolean = false) =
+    ProtocolDto(
+        id = id,
+        name = name,
+        version = 1,
+        forChildren = forChildren,
+        stepCount = 2,
+        hasPreQuestionnaire = true,
+        hasPostQuestionnaire = true,
+    )
+
+fun startSessionDto(sessionId: String = "sesion-1", kind: String = "adult") = StartSessionDto(
+    sessionId = sessionId,
+    phase = "confirmation",
+    participant = SessionParticipantDto(id = "p-adulto", code = "P-RGNYTB", kind = kind),
+    confirmation = ConfirmationDto(
+        reminder = "Recuerda tu compromiso de confidencialidad.",
+        required = if (kind == "child") {
+            listOf("commitment_reminder", "guardian_present", "child_assent")
+        } else {
+            listOf("commitment_reminder", "authorization_confirmed")
+        },
+    ),
+)
+
+fun stepDto(
+    sessionId: String = "sesion-1",
+    phase: String,
+    sendFrames: Boolean = false,
+    frameIntervalMs: Long? = null,
+    captureStatus: List<String> = emptyList(),
+    questionnaire: QuestionnaireDto? = null,
+    calibration: CalibrationDto? = null,
+    stimulus: StimulusDto? = null,
+    stopReason: String? = null,
+) = SessionStepDto(
+    sessionId = sessionId,
+    phase = phase,
+    stopReason = stopReason,
+    sendFrames = sendFrames,
+    frameIntervalMs = frameIntervalMs,
+    captureStatus = captureStatus,
+    questionnaire = questionnaire,
+    calibration = calibration,
+    stimulus = stimulus,
+    stepCount = 2,
+)
+
+/** Crea el ViewModel en un `ViewModelStore` para poder cancelar su `viewModelScope` al final. */
+inline fun <reified VM : ViewModel> ViewModelStore.create(crossinline build: () -> VM): VM =
+    ViewModelProvider.create(this, viewModelFactory { initializer { build() } })[VM::class]
 
 class InMemoryValueStore(var value: String? = null) : ValueStore {
     override suspend fun read(): String? = value
@@ -186,6 +362,7 @@ class TestGraph(dispatcher: TestDispatcher) {
     val authRepository = AuthRepositoryImpl(api, refreshTokenStore, tokenHolder)
     val pinRepository = PinRepositoryImpl(pinStore, PinHasher(iterations = 1_000), dispatcher)
     val summaryRepository = SummaryRepositoryImpl(api, authRepository)
+    val sessionRepository = SessionRepositoryImpl(api, authRepository, dispatcher)
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)

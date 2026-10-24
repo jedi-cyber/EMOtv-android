@@ -10,10 +10,12 @@ import pe.unheval.emotv.data.remote.EmotvApi
 import pe.unheval.emotv.data.remote.NetworkFactory
 import pe.unheval.emotv.data.repository.AuthRepositoryImpl
 import pe.unheval.emotv.data.repository.PinRepositoryImpl
+import pe.unheval.emotv.data.repository.SessionRepositoryImpl
 import pe.unheval.emotv.data.repository.StatusRepositoryImpl
 import pe.unheval.emotv.data.repository.SummaryRepositoryImpl
 import pe.unheval.emotv.domain.repository.AuthRepository
 import pe.unheval.emotv.domain.repository.PinRepository
+import pe.unheval.emotv.domain.repository.SessionRepository
 import pe.unheval.emotv.domain.repository.StatusRepository
 import pe.unheval.emotv.domain.repository.SummaryRepository
 import pe.unheval.emotv.domain.usecase.CheckServerStatusUseCase
@@ -22,6 +24,7 @@ import pe.unheval.emotv.domain.usecase.LoginUseCase
 import pe.unheval.emotv.domain.usecase.LogoutUseCase
 import pe.unheval.emotv.domain.usecase.RestoreSessionUseCase
 import pe.unheval.emotv.domain.usecase.SetPinUseCase
+import pe.unheval.emotv.domain.usecase.VerifyPinUseCase
 import java.time.Clock
 
 // Solo guarda el token de renovación cifrado y el hash del PIN. Excluido de las copias de seguridad.
@@ -46,10 +49,13 @@ class AppContainer(context: Context) {
 
     private val summaryRepository: SummaryRepository = SummaryRepositoryImpl(api, authRepository)
 
+    val sessionRepository: SessionRepository = SessionRepositoryImpl(api, authRepository)
+
     val checkServerStatus = CheckServerStatusUseCase(statusRepository, BuildConfig.VERSION_NAME)
     val restoreSession = RestoreSessionUseCase(authRepository, pinRepository)
     val login = LoginUseCase(authRepository, pinRepository)
     val logout = LogoutUseCase(authRepository, pinRepository)
     val setPin = SetPinUseCase(pinRepository)
+    val verifyPin = VerifyPinUseCase(pinRepository)
     val loadDashboard = LoadDashboardUseCase(summaryRepository, Clock.systemDefaultZone())
 }

@@ -1,10 +1,19 @@
 package pe.unheval.emotv.domain.repository
 
 import kotlinx.coroutines.flow.StateFlow
+import pe.unheval.emotv.domain.model.Answer
 import pe.unheval.emotv.domain.model.AuthUser
+import pe.unheval.emotv.domain.model.ConfirmationItem
 import pe.unheval.emotv.domain.model.DashboardSummary
+import pe.unheval.emotv.domain.model.FrameResult
+import pe.unheval.emotv.domain.model.GuidedPhase
 import pe.unheval.emotv.domain.model.Outcome
+import pe.unheval.emotv.domain.model.QuestionnaireMoment
 import pe.unheval.emotv.domain.model.ServerStatus
+import pe.unheval.emotv.domain.model.SessionProtocol
+import pe.unheval.emotv.domain.model.SessionStep
+import pe.unheval.emotv.domain.model.StartedSession
+import pe.unheval.emotv.domain.model.StopReason
 import java.time.LocalDate
 
 interface StatusRepository {
@@ -48,4 +57,49 @@ interface PinRepository {
     suspend fun savePin(pin: String)
     suspend fun verifyPin(pin: String): Boolean
     suspend fun clear()
+}
+
+/**
+ * Sesión guiada con participante. Nada se guarda en disco: las respuestas, los estímulos
+ * y los cuadros viven en memoria mientras se usan.
+ */
+interface SessionRepository {
+    suspend fun protocols(participantId: String): Outcome<List<SessionProtocol>>
+
+    suspend fun start(participantId: String, protocolId: String): Outcome<StartedSession>
+
+    /** Envía las casillas marcadas; las que no estén en [checked] van en `false`. */
+    suspend fun confirm(sessionId: String, checked: Set<ConfirmationItem>): Outcome<SessionStep>
+
+    suspend fun next(sessionId: String): Outcome<SessionStep>
+
+    /** Respuestas del participante (`entry_mode: participant`). No se devuelven. */
+    suspend fun submitQuestionnaire(
+        sessionId: String,
+        moment: QuestionnaireMoment,
+        answers: Map<String, Answer>,
+    ): Outcome<GuidedPhase?>
+
+    suspend fun advance(sessionId: String): Outcome<GuidedPhase?>
+
+    suspend fun startCalibration(sessionId: String): Outcome<GuidedPhase?>
+
+    /**
+     * Envía un cuadro JPEG para que el servidor lo analice en memoria y lo descarte.
+     * Al terminar, haya salido bien o no, borra el contenido de [jpeg].
+     */
+    suspend fun sendFrame(sessionId: String, jpeg: ByteArray): Outcome<FrameResult>
+
+    suspend fun stop(sessionId: String, reason: StopReason): Outcome<GuidedPhase?>
+
+    /** Imagen del estímulo, en memoria (sin caché de disco). */
+    suspend fun stimulusImage(imageUrl: String): Outcome<ByteArray>
+}
+
+/**
+ * Cámara frontal. Entrega un cuadro JPEG en memoria, o `null` si la cámara aún no tiene
+ * uno. Nunca escribe imágenes en el almacenamiento.
+ */
+fun interface FrameSource {
+    suspend fun capture(jpegQuality: Int): ByteArray?
 }

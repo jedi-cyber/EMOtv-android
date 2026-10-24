@@ -132,10 +132,131 @@
     <string name="dashboard_web_title">Participantes, protocolos y cuestionarios se gestionan en la web</string>
     <string name="dashboard_web_body">Para registrar o editar participantes, sus autorizaciones, protocolos o cuestionarios, ingresa a la web de EMOtv.</string>
 
-    <!-- Inicio de sesión con participante (pendiente) -->
-    <string name="session_start_title">Iniciar sesión</string>
-    <string name="session_start_subtitle">Participante %1$s</string>
-    <string name="session_start_pending">El modo sesión todavía no está disponible</string>
-    <string name="session_start_pending_body">La elección del protocolo y la sesión bloqueada para el participante se agregan en la siguiente etapa del aplicativo.</string>
-    <string name="session_start_back">Volver al inicio</string>
+    <!-- Preparación de la sesión -->
+    <string name="setup_title">Preparar la sesión</string>
+    <string name="setup_subtitle">Participante %1$s</string>
+    <string name="setup_protocol_title">Protocolo</string>
+    <string name="setup_protocol_loading">Cargando los protocolos…</string>
+    <string name="setup_protocol_empty">No hay protocolos que puedas aplicar a este participante</string>
+    <string name="setup_protocol_empty_body">Los protocolos se arman en la web de EMOtv. Con niños, el protocolo debe estar preparado para niños y aprobado por el docente.</string>
+    <string name="setup_protocol_version">Versión %1$d</string>
+    <plurals name="setup_protocol_steps">
+        <item quantity="one">%d estímulo</item>
+        <item quantity="many">%d estímulos</item>
+        <item quantity="other">%d estímulos</item>
+    </plurals>
+    <string name="setup_protocol_pre">Cuestionario previo</string>
+    <string name="setup_protocol_post">Cuestionario posterior</string>
+    <string name="setup_protocol_for_children">Para niños</string>
+    <string name="setup_continue">Continuar</string>
+    <string name="setup_back">Volver al inicio</string>
+    <string name="setup_selected_protocol">Protocolo: %1$s</string>
+
+    <string name="setup_confirmation_title">Confirmación previa</string>
+    <string name="setup_reminder_title">Recordatorio</string>
+    <string name="setup_confirm_commitment">Leí el recordatorio del compromiso de confidencialidad.</string>
+    <string name="setup_confirm_authorization">El participante dio su autorización para esta sesión.</string>
+    <string name="setup_confirm_guardian">El padre, la madre o el tutor del niño o la niña está presente.</string>
+    <string name="setup_confirm_assent">El niño o la niña dio su asentimiento para participar.</string>
+
+    <string name="setup_camera_title">Cámara e iluminación</string>
+    <string name="setup_camera_body">Revisa que el rostro se vea completo, de frente y con buena luz. La vista previa no se graba ni se envía.</string>
+    <string name="setup_camera_preview_description">Vista previa de la cámara frontal</string>
+    <string name="setup_camera_permission">La cámara no tiene permiso</string>
+    <string name="setup_camera_permission_body">EMOtv necesita la cámara frontal para la sesión. Las capturas se envían al servidor y no se guardan en la tablet.</string>
+    <string name="setup_camera_allow">Permitir la cámara</string>
+    <string name="setup_camera_settings">Abrir los ajustes</string>
+    <string name="setup_camera_unavailable">No se pudo abrir la cámara frontal</string>
+    <string name="setup_camera_unavailable_body">Cierra otras aplicaciones que usen la cámara y vuelve a intentarlo.</string>
+    <string name="setup_lighting_checked">Revisé la iluminación y el encuadre.</string>
+
+    <string name="setup_missing_confirmations">Marca todas las confirmaciones para continuar.</string>
+    <string name="setup_missing_camera">La cámara frontal debe estar funcionando.</string>
+    <string name="setup_missing_lighting">Revisa la iluminación en la vista previa.</string>
+    <string name="setup_lock_notice">Al iniciar, la pantalla queda fijada para el participante. Para salir hará falta tu PIN.</string>
+    <string name="setup_hand_over">Iniciar y entregar la tablet</string>
+    <string name="setup_cancel">Cancelar la sesión</string>
+
+    <string name="session_error_network">No hay conexión con el servidor</string>
+    <string name="session_error_network_body">Revisa la conexión a internet de la tablet y vuelve a intentarlo.</string>
+    <string name="session_error_generic">No se pudo completar la acción</string>
+    <string name="session_error_generic_body">Vuelve a intentarlo en un momento.</string>
+    <string name="session_error_account_ended">La sesión de tu cuenta se cerró</string>
+    <string name="session_error_account_ended_body">Vuelve al inicio e inicia sesión de nuevo.</string>
+
+    <!-- Modo sesión (pantalla del participante) -->
+    <string name="session_loading">Preparando la sesión…</string>
+    <string name="session_stop">Quiero parar</string>
+    <string name="session_stop_description">Quiero parar. Pausa la sesión y llama a quien la conduce.</string>
+    <string name="session_not_pinned">La pantalla no quedó fijada</string>
+    <string name="session_not_pinned_body">Fíjala para que el participante no salga de la sesión.</string>
+    <string name="session_pin_screen">Fijar la pantalla</string>
+
+    <string name="questionnaire_required">Obligatoria</string>
+    <string name="questionnaire_submit">Enviar respuestas</string>
+    <string name="questionnaire_answered">Este cuestionario ya se respondió.</string>
+    <string name="questionnaire_continue">Continuar</string>
+    <string name="questionnaire_face">Cara %1$d de %2$d</string>
+    <string name="questionnaire_scale_point">%1$d de %2$d</string>
+    <string name="questionnaire_text_label">Tu respuesta</string>
+    <string name="questionnaire_unsupported">Esta pregunta se responde en la web.</string>
+
+    <string name="calibration_title">Prepárate</string>
+    <string name="calibration_body">Mira hacia la pantalla con el rostro relajado, como cuando descansas. Serán unos segundos.</string>
+    <string name="calibration_start">Empezar</string>
+    <string name="calibration_running">Mantén el rostro relajado y mira hacia la pantalla.</string>
+    <string name="calibration_progress">Avance de la preparación</string>
+    <string name="calibration_done">Listo. En un momento empiezan las imágenes.</string>
+
+    <string name="stimulus_description">Imagen de la sesión</string>
+    <string name="stimulus_step">Imagen %1$d de %2$d</string>
+    <string name="stimulus_loading">Cargando la imagen…</string>
+
+    <string name="capture_no_face">Mira hacia la pantalla para que la cámara vea tu rostro.</string>
+    <string name="capture_off_center">Acomódate un poco hacia el centro de la pantalla.</string>
+    <string name="capture_too_small">Acércate un poco a la tablet.</string>
+    <string name="capture_too_dark">Hay poca luz sobre tu rostro.</string>
+    <string name="capture_too_bright">Hay demasiada luz sobre tu rostro.</string>
+    <string name="capture_tilted">Mantén la cabeza derecha.</string>
+    <string name="capture_no_frame">La cámara se está preparando.</string>
+
+    <string name="session_finished_title">¡Gracias por participar!</string>
+    <string name="session_finished_body">La sesión terminó. Entrega la tablet a quien conduce la sesión.</string>
+    <string name="session_stopped_title">La sesión se detuvo</string>
+    <string name="session_stopped_body">Gracias. Entrega la tablet a quien conduce la sesión.</string>
+    <string name="session_hand_back">Entregar la tablet</string>
+
+    <!-- Modo sesión (panel de quien conduce) -->
+    <string name="pause_participant_title">Sesión en pausa</string>
+    <string name="pause_participant_body">El participante pidió parar. No se están tomando capturas. Quien conduce la sesión ingresa su PIN para continuar o terminar.</string>
+    <string name="pause_exit_title">Salir del modo sesión</string>
+    <string name="pause_exit_body">Quien conduce la sesión ingresa su PIN para salir.</string>
+    <string name="pause_back_to_session">Volver a la sesión</string>
+    <string name="pause_finished_title">Sesión terminada</string>
+    <string name="pause_stopped_title">Sesión interrumpida</string>
+    <string name="pause_ended_body">Ingresa tu PIN para volver al inicio. El reporte se redacta y se revisa en la web de EMOtv.</string>
+    <string name="pause_offline_title">Sin conexión con el servidor</string>
+    <string name="pause_offline_body">La sesión está en pausa y no se toman capturas. Revisa la conexión a internet de la tablet; se reintentará sola.</string>
+    <string name="pause_offline_retry">Reintentar ahora</string>
+    <string name="pause_failed_title">La sesión no puede continuar</string>
+    <string name="pause_failed_body">Ingresa tu PIN para salir. Puedes revisar la sesión en la web de EMOtv.</string>
+    <string name="pause_failed_account_body">La sesión de tu cuenta se cerró. Ingresa tu PIN para salir y vuelve a iniciar sesión.</string>
+
+    <string name="pause_pin_label">PIN de quien conduce</string>
+    <string name="pause_unlock">Desbloquear</string>
+    <string name="pause_pin_wrong">PIN incorrecto.</string>
+    <plurals name="pause_pin_locked">
+        <item quantity="one">Demasiados intentos. Espera %d segundo.</item>
+        <item quantity="many">Demasiados intentos. Espera %d segundos.</item>
+        <item quantity="other">Demasiados intentos. Espera %d segundos.</item>
+    </plurals>
+
+    <string name="pause_resume">Continuar la sesión</string>
+    <string name="pause_reason_title">¿Quién pidió terminar?</string>
+    <string name="pause_reason_participant">El participante</string>
+    <string name="pause_reason_guardian">El padre, la madre o el tutor</string>
+    <string name="pause_reason_conductor">Quien conduce la sesión</string>
+    <string name="pause_end">Terminar la sesión</string>
+    <string name="pause_go_home">Volver al inicio</string>
+    <string name="pause_report_notice">El reporte se redacta y se revisa en la web de EMOtv. Lo que el participante dijo ver en una imagen abstracta se registra desde la web.</string>
 </resources>

@@ -58,3 +58,8 @@ class SetPinUseCase(private val pinRepository: PinRepository) {
             pin.length in MIN_LENGTH..MAX_LENGTH && pin.all { it in '0'..'9' }
     }
 }
+
+/** PIN de quien inició sesión, para salir del modo sesión. Solo se compara con su hash. */
+class VerifyPinUseCase(private val pinRepository: PinRepository) {
+    suspend operator fun invoke(pin: String): Boolean = pinRepository.verifyPin(pin)
+}

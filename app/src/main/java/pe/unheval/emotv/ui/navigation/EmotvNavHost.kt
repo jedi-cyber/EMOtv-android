@@ -22,7 +22,11 @@ import pe.unheval.emotv.ui.login.LoginViewModel
 import pe.unheval.emotv.ui.login.PasswordChangeRequiredScreen
 import pe.unheval.emotv.ui.pin.PinSetupScreen
 import pe.unheval.emotv.ui.pin.PinSetupViewModel
-import pe.unheval.emotv.ui.session.SessionStartScreen
+import pe.unheval.emotv.ui.session.LockedSessionActions
+import pe.unheval.emotv.ui.session.LockedSessionScreen
+import pe.unheval.emotv.ui.session.LockedSessionViewModel
+import pe.unheval.emotv.ui.session.SessionSetupScreen
+import pe.unheval.emotv.ui.session.SessionSetupViewModel
 import pe.unheval.emotv.ui.startup.StartupScreen
 import pe.unheval.emotv.ui.startup.StartupUiState
 import pe.unheval.emotv.ui.startup.StartupViewModel
@@ -33,7 +37,11 @@ import pe.unheval.emotv.ui.startup.StartupViewModel
 @Serializable data object PinSetupRoute
 @Serializable data object DashboardRoute
 // Solo el código: el nombre del participante nunca llega al aplicativo.
-@Serializable data class SessionStartRoute(val participantId: String, val participantCode: String)
+@Serializable data class SessionSetupRoute(val participantId: String, val participantCode: String)
+@Serializable data class LockedSessionRoute(val sessionId: String, val participantKind: String)
+
+// El dashboard vuelve a pedir el resumen al regresar de una sesión.
+private const val REFRESH_DASHBOARD = "refresh_dashboard"
 
 @Composable
 fun EmotvNavHost(
@@ -108,9 +116,18 @@ fun EmotvNavHost(
             )
         }
 
-        composable<DashboardRoute> {
+        composable<DashboardRoute> { entry ->
             val viewModel: DashboardViewModel = viewModel(factory = DashboardViewModel.Factory)
             val state by viewModel.uiState.collectAsStateWithLifecycle()
+            val refreshRequested by entry.savedStateHandle
+                .getStateFlow(REFRESH_DASHBOARD, false)
+                .collectAsStateWithLifecycle()
+            LaunchedEffect(refreshRequested) {
+                if (refreshRequested) {
+                    entry.savedStateHandle[REFRESH_DASHBOARD] = false
+                    viewModel.refresh()
+                }
+            }
             LaunchedEffect(state.loggedOut) {
                 if (state.loggedOut) {
                     // Al sacar el dashboard de la pila se descarta su ViewModel y sus datos.
@@ -122,17 +139,66 @@ fun EmotvNavHost(
                 onRefresh = viewModel::refresh,
                 onSelectParticipant = viewModel::selectParticipant,
                 onStartSession = { participant ->
-                    navController.navigate(SessionStartRoute(participant.id, participant.code))
+                    navController.navigate(SessionSetupRoute(participant.id, participant.code))
                 },
                 onLogout = viewModel::logOut,
             )
         }
 
-        composable<SessionStartRoute> { entry ->
-            val route = entry.toRoute<SessionStartRoute>()
-            SessionStartScreen(
-                participantCode = route.participantCode,
-                onBack = { navController.popBackStack() },
+        composable<SessionSetupRoute> {
+            val viewModel: SessionSetupViewModel = viewModel(factory = SessionSetupViewModel.Factory)
+            val state by viewModel.uiState.collectAsStateWithLifecycle()
+            LaunchedEffect(state.locked) {
+                val locked = state.locked ?: return@LaunchedEffect
+                navController.navigate(LockedSessionRoute(locked.sessionId, locked.participantKind.apiValue)) {
+                    popUpTo<SessionSetupRoute> { inclusive = true }
+                }
+                viewModel.onNavigated()
+            }
+            LaunchedEffect(state.closed) {
+                if (state.closed) navController.popBackStack()
+            }
+            SessionSetupScreen(
+                state = state,
+                onRetryProtocols = viewModel::retryProtocols,
+                onSelectProtocol = viewModel::selectProtocol,
+                onContinue = viewModel::startSession,
+                onCheckedChange = viewModel::setChecked,
+                onCameraReadyChange = viewModel::onCameraReady,
+                onLightingCheckedChange = viewModel::setLightingChecked,
+                onHandOver = viewModel::handOver,
+                onCancel = viewModel::cancel,
+            )
+        }
+
+        composable<LockedSessionRoute> {
+            val viewModel: LockedSessionViewModel = viewModel(factory = LockedSessionViewModel.Factory)
+            val state by viewModel.uiState.collectAsStateWithLifecycle()
+            LaunchedEffect(state.exited) {
+                if (state.exited) {
+                    // Al salir de la pila se libera la cámara y se quita el bloqueo.
+                    navController.previousBackStackEntry?.savedStateHandle?.set(REFRESH_DASHBOARD, true)
+                    navController.popBackStack()
+                }
+            }
+            LockedSessionScreen(
+                state = state,
+                actions = LockedSessionActions(
+                    onAnswer = viewModel::answer,
+                    onSubmitQuestionnaire = viewModel::submitQuestionnaire,
+                    onStartCalibration = viewModel::startCalibration,
+                    onRequestStop = viewModel::requestStop,
+                    onRequestExit = viewModel::requestExit,
+                    onDismissExit = viewModel::dismissExitRequest,
+                    onRetryConnection = viewModel::retryConnection,
+                    onPinChange = viewModel::onPinChange,
+                    onSubmitPin = viewModel::submitPin,
+                    onStopReasonChange = viewModel::setStopReason,
+                    onResume = viewModel::resume,
+                    onEnd = viewModel::endSession,
+                ),
+                onAttachCamera = viewModel::attachFrameSource,
+                onDetachCamera = viewModel::detachFrameSource,
             )
         }
     }
