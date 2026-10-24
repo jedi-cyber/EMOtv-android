@@ -57,8 +57,85 @@
     <string name="pin_error_mismatch">Los dos PIN no coinciden.</string>
     <string name="pin_submit">Guardar PIN</string>
 
-    <!-- Inicio -->
-    <string name="home_title">Inicio</string>
-    <string name="home_signed_in_as">Sesión iniciada como %1$s (%2$s).</string>
-    <string name="home_summary_pending">El resumen del día aparecerá aquí.</string>
+    <!-- Dashboard -->
+    <string name="dashboard_section">Inicio</string>
+    <!-- La API no envía el nombre de la cuenta: saludo sin nombre, nunca con la parte del correo. -->
+    <string name="dashboard_greeting">Hola</string>
+    <string name="dashboard_subtitle">Resumen de hoy, %1$s.</string>
+    <string name="dashboard_account">Cuenta</string>
+    <string name="dashboard_account_menu">Menú de la cuenta, %1$s</string>
+    <string name="dashboard_signed_in_as">Sesión iniciada como %1$s</string>
+    <string name="dashboard_loading">Cargando el resumen del día…</string>
+    <string name="dashboard_refresh">Actualizar</string>
+    <string name="dashboard_error_network">No hay conexión con el servidor</string>
+    <string name="dashboard_error_network_body">Revisa la conexión a internet de la tablet y desliza hacia abajo para actualizar.</string>
+    <string name="dashboard_error_generic">No se pudo cargar el resumen</string>
+    <string name="dashboard_error_generic_body">Vuelve a intentarlo en un momento.</string>
+    <string name="dashboard_error_stale">Se muestra el último resumen cargado.</string>
+
+    <string name="dashboard_today_title">Sesiones de hoy</string>
+    <plurals name="dashboard_today_count">
+        <item quantity="one">%d sesión</item>
+        <item quantity="many">%d sesiones</item>
+        <item quantity="other">%d sesiones</item>
+    </plurals>
+    <string name="dashboard_today_empty">Hoy todavía no hay sesiones.</string>
+    <string name="dashboard_chart_title">Sesiones por hora</string>
+    <string name="dashboard_chart_description">Gráfico de sesiones de hoy por hora: %1$s en total, entre las %2$s y las %3$s. La hora con más sesiones es las %4$s.</string>
+    <string name="dashboard_hour">%1$02d:00</string>
+
+    <string name="dashboard_participants_title">Participantes</string>
+    <string name="dashboard_participants_hint">Elige un participante para iniciar una sesión con él o ella.</string>
+    <string name="dashboard_participants_empty">Todavía no tienes participantes registrados. Regístralos en la web de EMOtv y actualiza esta pantalla.</string>
+    <string name="dashboard_kind_adult">Adulto</string>
+    <string name="dashboard_kind_child">Niño o niña</string>
+    <string name="dashboard_kind_unknown">Participante</string>
+    <plurals name="dashboard_age_years">
+        <item quantity="one">%d año</item>
+        <item quantity="many">%d años</item>
+        <item quantity="other">%d años</item>
+    </plurals>
+    <string name="dashboard_age_missing">Sin edad registrada</string>
+    <string name="dashboard_last_session">Última sesión: %1$s</string>
+    <string name="dashboard_no_sessions">Aún no tiene sesiones.</string>
+    <string name="dashboard_requirements_title">No se puede iniciar una sesión</string>
+
+    <string name="dashboard_missing_participation">Falta la autorización de participación.</string>
+    <string name="dashboard_missing_camera">Falta la autorización para usar la cámara.</string>
+    <string name="dashboard_missing_child_assent">Falta el asentimiento del niño o la niña.</string>
+    <string name="dashboard_missing_revoked">Se retiró una autorización.</string>
+    <string name="dashboard_missing_age">Falta registrar la edad.</string>
+    <string name="dashboard_missing_other">Falta un requisito.</string>
+    <string name="dashboard_missing_where">Eso se registra en la web de EMOtv.</string>
+
+    <string name="dashboard_state_in_progress">En curso</string>
+    <string name="dashboard_state_completed">Completada</string>
+    <string name="dashboard_state_cancelled">Cancelada</string>
+    <string name="dashboard_state_created">Creada en la web</string>
+    <string name="dashboard_state_recognized">Registrada en la web</string>
+    <string name="dashboard_state_unknown">Sin estado</string>
+    <string name="dashboard_phase_confirmation">Confirmación</string>
+    <string name="dashboard_phase_pre_questionnaire">Cuestionario previo</string>
+    <string name="dashboard_phase_before_analyzer">Imagen abstracta inicial</string>
+    <string name="dashboard_phase_calibration">Calibración</string>
+    <string name="dashboard_phase_stimuli">Estímulos</string>
+    <string name="dashboard_phase_post_questionnaire">Cuestionario posterior</string>
+    <string name="dashboard_phase_finished">Finalizada</string>
+    <string name="dashboard_phase_stopped">Interrumpida</string>
+
+    <string name="dashboard_start">Iniciar sesión con un participante</string>
+    <string name="dashboard_start_no_participants">Necesitas al menos un participante registrado en la web.</string>
+    <string name="dashboard_start_select">Elige un participante de la lista.</string>
+    <string name="dashboard_start_ready">Se iniciará la sesión con %1$s.</string>
+    <string name="dashboard_start_blocked">No se puede iniciar una sesión con %1$s: %2$s</string>
+
+    <string name="dashboard_web_title">Participantes, protocolos y cuestionarios se gestionan en la web</string>
+    <string name="dashboard_web_body">Para registrar o editar participantes, sus autorizaciones, protocolos o cuestionarios, ingresa a la web de EMOtv.</string>
+
+    <!-- Inicio de sesión con participante (pendiente) -->
+    <string name="session_start_title">Iniciar sesión</string>
+    <string name="session_start_subtitle">Participante %1$s</string>
+    <string name="session_start_pending">El modo sesión todavía no está disponible</string>
+    <string name="session_start_pending_body">La elección del protocolo y la sesión bloqueada para el participante se agregan en la siguiente etapa del aplicativo.</string>
+    <string name="session_start_back">Volver al inicio</string>
 </resources>

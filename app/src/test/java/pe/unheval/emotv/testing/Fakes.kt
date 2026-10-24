@@ -17,14 +17,18 @@ import pe.unheval.emotv.data.local.ValueStore
 import pe.unheval.emotv.data.remote.AccessTokenHolder
 import pe.unheval.emotv.data.remote.EmotvApi
 import pe.unheval.emotv.data.remote.LoginRequestDto
+import pe.unheval.emotv.data.remote.ParticipantDto
 import pe.unheval.emotv.data.remote.RefreshRequestDto
 import pe.unheval.emotv.data.remote.ServicesDto
+import pe.unheval.emotv.data.remote.SessionDto
 import pe.unheval.emotv.data.remote.StatusDto
+import pe.unheval.emotv.data.remote.SummaryDto
 import pe.unheval.emotv.data.remote.TokenResponseDto
 import pe.unheval.emotv.data.remote.UserDto
 import pe.unheval.emotv.data.repository.AuthRepositoryImpl
 import pe.unheval.emotv.data.repository.PinRepositoryImpl
 import pe.unheval.emotv.data.repository.StatusRepositoryImpl
+import pe.unheval.emotv.data.repository.SummaryRepositoryImpl
 import retrofit2.HttpException
 import retrofit2.Response
 import java.io.IOException
@@ -33,10 +37,14 @@ import java.io.IOException
 class FakeEmotvApi : EmotvApi {
     var status: () -> StatusDto = { statusDto() }
     var login: (LoginRequestDto) -> TokenResponseDto = { tokenResponse() }
-    var refresh: (RefreshRequestDto) -> TokenResponseDto = { tokenResponse(refreshToken = "renovado") }
+    var refresh: (RefreshRequestDto) -> TokenResponseDto = {
+        tokenResponse(accessToken = "acceso-renovado", refreshToken = "renovado")
+    }
+    var summary: (date: String, utcOffsetMinutes: Int) -> SummaryDto = { _, _ -> summaryDto() }
 
     val loginRequests = mutableListOf<LoginRequestDto>()
     val refreshRequests = mutableListOf<RefreshRequestDto>()
+    val summaryRequests = mutableListOf<Pair<String, Int>>()
     var statusCalls = 0
     var logoutCalls = 0
 
@@ -58,6 +66,11 @@ class FakeEmotvApi : EmotvApi {
     override suspend fun logout(): Response<Unit> {
         logoutCalls++
         return Response.success(204, Unit)
+    }
+
+    override suspend fun summary(date: String, utcOffsetMinutes: Int): SummaryDto {
+        summaryRequests += date to utcOffsetMinutes
+        return summary.invoke(date, utcOffsetMinutes)
     }
 }
 
@@ -83,16 +96,63 @@ fun statusDto(
 )
 
 fun tokenResponse(
+    accessToken: String = "acceso-de-prueba",
     refreshToken: String = "renovacion-de-prueba",
     role: String = "student",
     roleName: String = "Usuario",
 ) = TokenResponseDto(
-    accessToken = "acceso-de-prueba",
+    accessToken = accessToken,
     expiresIn = 900,
     refreshToken = refreshToken,
     refreshExpiresIn = 2_592_000,
     user = UserDto(id = "user-1", email = "usuario1@example.com", role = role, roleName = roleName),
 )
+
+val testUser = UserDto(id = "user-1", email = "usuario1@example.com", role = "student", roleName = "Usuario")
+
+fun sessionDto(
+    id: String = "sesion-1",
+    startedAt: String = "2026-10-23T14:04:10.922662+00:00",
+    state: String = "in_progress",
+    guidedPhase: String? = "stimuli",
+    participantId: String = "p-adulto",
+    participantCode: String = "P-RGNYTB",
+) = SessionDto(
+    id = id,
+    startedAt = startedAt,
+    state = state,
+    guidedPhase = guidedPhase,
+    participantId = participantId,
+    participantCode = participantCode,
+    protocolName = "Secuencia móvil",
+)
+
+/** Adulto con todas sus autorizaciones y una sesión en curso hoy. */
+fun readyAdultDto() = ParticipantDto(
+    id = "p-adulto",
+    code = "P-RGNYTB",
+    kind = "adult",
+    ageYears = 30,
+    ready = true,
+    lastSession = sessionDto(),
+)
+
+/** Niño sin asentimiento: el servidor no permite iniciar una sesión. */
+fun childWithoutAssentDto() = ParticipantDto(
+    id = "p-nino",
+    code = "P-7KQ2MD",
+    kind = "child",
+    ageYears = 9,
+    ready = false,
+    missing = listOf("child_assent"),
+    warnings = listOf("Falta el asentimiento del niño o la niña"),
+)
+
+fun summaryDto(
+    date: String = "2026-10-23",
+    todaySessions: List<SessionDto> = listOf(sessionDto()),
+    participants: List<ParticipantDto> = listOf(readyAdultDto(), childWithoutAssentDto()),
+) = SummaryDto(user = testUser, date = date, todaySessions = todaySessions, participants = participants)
 
 /** Error con la forma de docs/mobile-api.md: `{"detail": {"code", "message"}}`. */
 fun mobileError(
@@ -125,6 +185,7 @@ class TestGraph(dispatcher: TestDispatcher) {
     val statusRepository = StatusRepositoryImpl(api)
     val authRepository = AuthRepositoryImpl(api, refreshTokenStore, tokenHolder)
     val pinRepository = PinRepositoryImpl(pinStore, PinHasher(iterations = 1_000), dispatcher)
+    val summaryRepository = SummaryRepositoryImpl(api, authRepository)
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
