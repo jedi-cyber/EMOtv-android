@@ -72,6 +72,7 @@ import pe.unheval.emotv.ui.theme.EmotvType
 object SessionSetupTags {
     const val CONTINUE = "setup_continue"
     const val HAND_OVER = "setup_hand_over"
+    const val ALLOW_CAMERA = "setup_allow_camera"
 }
 
 @Composable
@@ -287,37 +288,24 @@ private fun CameraCheck(
         granted = it
         asked = true
     }
-    // Al volver de los ajustes del sistema.
+    // Al volver de los ajustes del sistema. El permiso se pide solo al tocar el botón,
+    // después de explicar para qué se usa la cámara.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { granted = hasPermission() }
-    LaunchedEffect(Unit) {
-        if (!granted && !asked) launcher.launch(Manifest.permission.CAMERA)
-    }
 
     Text(stringResource(R.string.setup_camera_body), style = EmotvType.BodyMd, color = EmotvColors.Charcoal)
     LaunchedEffect(granted) {
         if (!granted) onCameraReadyChange(false)
     }
     if (!granted) {
-        Callout(
-            title = stringResource(R.string.setup_camera_permission),
-            body = stringResource(R.string.setup_camera_permission_body),
-            tone = CalloutTone.Warning,
-        ) {
-            SecondaryButton(
-                text = stringResource(R.string.setup_camera_allow),
-                onClick = { launcher.launch(Manifest.permission.CAMERA) },
-            )
-            if (asked) {
-                GhostButton(
-                    text = stringResource(R.string.setup_camera_settings),
-                    onClick = {
-                        context.startActivity(
-                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)),
-                        )
-                    },
+        CameraPermissionRequest(
+            denied = asked,
+            onAllow = { launcher.launch(Manifest.permission.CAMERA) },
+            onOpenSettings = {
+                context.startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)),
                 )
-            }
-        }
+            },
+        )
         return
     }
 
@@ -349,6 +337,26 @@ private fun CameraCheck(
         onCheckedChange = onLightingCheckedChange,
         enabled = enabled && cameraReady,
     )
+}
+
+/**
+ * Explica para qué se usa la cámara antes de pedir el permiso. Si se negó, ofrece pedirlo
+ * de nuevo o abrir los ajustes del sistema.
+ */
+@Composable
+fun CameraPermissionRequest(denied: Boolean, onAllow: () -> Unit, onOpenSettings: () -> Unit) {
+    Callout(
+        title = stringResource(if (denied) R.string.setup_camera_permission else R.string.setup_camera_why_title),
+        body = stringResource(if (denied) R.string.setup_camera_permission_body else R.string.setup_camera_why_body),
+        tone = if (denied) CalloutTone.Warning else CalloutTone.Neutral,
+    ) {
+        SecondaryButton(
+            text = stringResource(R.string.setup_camera_allow),
+            onClick = onAllow,
+            modifier = Modifier.testTag(SessionSetupTags.ALLOW_CAMERA),
+        )
+        if (denied) GhostButton(text = stringResource(R.string.setup_camera_settings), onClick = onOpenSettings)
+    }
 }
 
 @Composable

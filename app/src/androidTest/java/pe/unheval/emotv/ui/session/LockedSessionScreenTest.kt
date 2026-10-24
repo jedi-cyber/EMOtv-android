@@ -1,11 +1,13 @@
 package pe.unheval.emotv.ui.session
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -100,6 +102,76 @@ class LockedSessionScreenTest {
         compose.onNodeWithTag(LockedSessionTags.RESUME).assertIsDisplayed()
         compose.onNodeWithText("El padre, la madre o el tutor").assertIsDisplayed()
         compose.onNodeWithTag(LockedSessionTags.END).performClick()
+        assertEquals(1, ends)
+    }
+
+    @Test
+    fun laSalidaEnviaElPinIngresado() {
+        var typed = ""
+        var submits = 0
+        show(
+            LockedSessionUiState(
+                participantKind = ParticipantKind.Adult,
+                step = step(GuidedPhase.Stimuli),
+                pause = SessionPause.ExitRequest,
+                pin = "1234",
+            ),
+            LockedSessionActions(onPinChange = { typed = it }, onSubmitPin = { submits++ }),
+        )
+
+        compose.onNodeWithText("Salir del modo sesión").assertIsDisplayed()
+        compose.onNodeWithTag(LockedSessionTags.PIN).performTextInput("5")
+        assertEquals("12345", typed)
+        compose.onNodeWithTag(LockedSessionTags.UNLOCK).assertIsEnabled().performClick()
+        assertEquals(1, submits)
+    }
+
+    @Test
+    fun unPinIncorrectoSeAvisaYNoMuestraLasOpciones() {
+        show(
+            LockedSessionUiState(
+                participantKind = ParticipantKind.Adult,
+                step = step(GuidedPhase.Stimuli),
+                pause = SessionPause.ExitRequest,
+                pinError = PinCheckError.Wrong,
+            ),
+        )
+
+        compose.onNodeWithText("PIN incorrecto.").assertIsDisplayed()
+        compose.onNodeWithTag(LockedSessionTags.END).assertDoesNotExist()
+    }
+
+    @Test
+    fun trasVariosIntentosBloqueaElPin() {
+        show(
+            LockedSessionUiState(
+                participantKind = ParticipantKind.Adult,
+                step = step(GuidedPhase.Stimuli),
+                pause = SessionPause.ExitRequest,
+                pin = "1234",
+                pinError = PinCheckError.LockedOut(30),
+            ),
+        )
+
+        compose.onNodeWithText("Demasiados intentos. Espera 30 segundos.").assertIsDisplayed()
+        compose.onNodeWithTag(LockedSessionTags.UNLOCK).assertIsNotEnabled()
+    }
+
+    @Test
+    fun alTerminarSoloOfreceVolverAlInicio() {
+        var ends = 0
+        show(
+            LockedSessionUiState(
+                participantKind = ParticipantKind.Adult,
+                step = step(GuidedPhase.Finished),
+                pause = SessionPause.ExitRequest,
+                unlocked = true,
+            ),
+            LockedSessionActions(onEnd = { ends++ }),
+        )
+
+        compose.onNodeWithTag(LockedSessionTags.RESUME).assertDoesNotExist()
+        compose.onNodeWithText("Volver al inicio").performClick()
         assertEquals(1, ends)
     }
 }

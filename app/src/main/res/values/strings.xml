@@ -162,8 +162,10 @@
     <string name="setup_camera_title">Cámara e iluminación</string>
     <string name="setup_camera_body">Revisa que el rostro se vea completo, de frente y con buena luz. La vista previa no se graba ni se envía.</string>
     <string name="setup_camera_preview_description">Vista previa de la cámara frontal</string>
+    <string name="setup_camera_why_title">Para qué se usa la cámara</string>
+    <string name="setup_camera_why_body">Durante la sesión, la cámara frontal toma cuadros del rostro del participante y los envía al servidor de EMOtv, que estima la expresión facial y los descarta. No se graba video ni se guarda ninguna imagen en la tablet. Antes de empezar, la vista previa sirve para revisar la iluminación.</string>
     <string name="setup_camera_permission">La cámara no tiene permiso</string>
-    <string name="setup_camera_permission_body">EMOtv necesita la cámara frontal para la sesión. Las capturas se envían al servidor y no se guardan en la tablet.</string>
+    <string name="setup_camera_permission_body">Sin la cámara frontal no se puede conducir la sesión. Vuelve a permitirla o actívala en los ajustes de la tablet.</string>
     <string name="setup_camera_allow">Permitir la cámara</string>
     <string name="setup_camera_settings">Abrir los ajustes</string>
     <string name="setup_camera_unavailable">No se pudo abrir la cámara frontal</string>
