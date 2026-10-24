@@ -97,7 +97,7 @@ class StartupViewModelTest {
         assertEquals("guardado", graph.api.refreshRequests.single().refreshToken)
         // El token de renovación cambia en cada renovación.
         assertEquals("renovado", graph.refreshTokenStore.value)
-        assertEquals("acceso-de-prueba", graph.tokenHolder.accessToken)
+        assertEquals("acceso-renovado", graph.tokenHolder.accessToken)
     }
 
     @Test

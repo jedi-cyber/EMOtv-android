@@ -3,6 +3,8 @@ package pe.unheval.emotv.data.repository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import pe.unheval.emotv.data.local.ValueStore
 import pe.unheval.emotv.data.remote.AccessTokenHolder
 import pe.unheval.emotv.data.remote.EmotvApi
@@ -12,6 +14,7 @@ import pe.unheval.emotv.data.remote.TokenResponseDto
 import pe.unheval.emotv.data.remote.apiCall
 import pe.unheval.emotv.domain.model.AppError
 import pe.unheval.emotv.domain.model.AuthUser
+import pe.unheval.emotv.domain.model.ErrorCodes
 import pe.unheval.emotv.domain.model.Outcome
 import pe.unheval.emotv.domain.repository.AuthRepository
 
@@ -30,7 +33,25 @@ class AuthRepositoryImpl(
             is Outcome.Success -> Outcome.Success(accept(result.value))
         }
 
-    override suspend fun restoreSession(): Outcome<AuthUser?> {
+    // El token de renovación cambia en cada uso: dos renovaciones a la vez revocarían la sesión.
+    private val renewLock = Mutex()
+
+    override suspend fun restoreSession(): Outcome<AuthUser?> = renewLock.withLock { renew() }
+
+    override suspend fun renewAccess(rejectedToken: String?): Outcome<Unit> = renewLock.withLock {
+        val current = tokenHolder.accessToken
+        // Otra llamada ya lo renovó mientras se esperaba el turno.
+        if (current != null && current != rejectedToken) return@withLock Outcome.Success(Unit)
+        when (val result = renew()) {
+            is Outcome.Failure -> result
+            is Outcome.Success ->
+                if (result.value != null) Outcome.Success(Unit) else Outcome.Failure(SESSION_ENDED)
+        }
+    }
+
+    override fun currentAccessToken(): String? = tokenHolder.accessToken
+
+    private suspend fun renew(): Outcome<AuthUser?> {
         val refreshToken = refreshTokenStore.read() ?: return Outcome.Success(null)
         return when (val result = apiCall { api.refresh(RefreshRequestDto(refreshToken)) }) {
             is Outcome.Success -> Outcome.Success(accept(result.value))
@@ -72,5 +93,13 @@ class AuthRepositoryImpl(
         tokenHolder.accessToken = null
         user.value = null
         refreshTokenStore.clear()
+    }
+
+    private companion object {
+        val SESSION_ENDED = AppError.Server(
+            httpStatus = 401,
+            code = ErrorCodes.INVALID_REFRESH_TOKEN,
+            message = null,
+        )
     }
 }

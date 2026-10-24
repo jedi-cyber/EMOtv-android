@@ -14,14 +14,15 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import kotlinx.serialization.Serializable
 import pe.unheval.emotv.domain.usecase.StartDestination
-import pe.unheval.emotv.ui.home.HomeScreen
-import pe.unheval.emotv.ui.home.HomeViewModel
+import pe.unheval.emotv.ui.dashboard.DashboardScreen
+import pe.unheval.emotv.ui.dashboard.DashboardViewModel
 import pe.unheval.emotv.ui.login.LoginNavigation
 import pe.unheval.emotv.ui.login.LoginScreen
 import pe.unheval.emotv.ui.login.LoginViewModel
 import pe.unheval.emotv.ui.login.PasswordChangeRequiredScreen
 import pe.unheval.emotv.ui.pin.PinSetupScreen
 import pe.unheval.emotv.ui.pin.PinSetupViewModel
+import pe.unheval.emotv.ui.session.SessionStartScreen
 import pe.unheval.emotv.ui.startup.StartupScreen
 import pe.unheval.emotv.ui.startup.StartupUiState
 import pe.unheval.emotv.ui.startup.StartupViewModel
@@ -30,7 +31,9 @@ import pe.unheval.emotv.ui.startup.StartupViewModel
 @Serializable data object LoginRoute
 @Serializable data class PasswordChangeRoute(val message: String? = null)
 @Serializable data object PinSetupRoute
-@Serializable data object HomeRoute
+@Serializable data object DashboardRoute
+// Solo el código: el nombre del participante nunca llega al aplicativo.
+@Serializable data class SessionStartRoute(val participantId: String, val participantCode: String)
 
 @Composable
 fun EmotvNavHost(
@@ -53,7 +56,7 @@ fun EmotvNavHost(
                 val target: Any = when (ready.destination) {
                     StartDestination.Login -> LoginRoute
                     StartDestination.PinSetup -> PinSetupRoute
-                    StartDestination.Home -> HomeRoute
+                    StartDestination.Home -> DashboardRoute
                 }
                 navController.navigate(target) { popUpTo<StartupRoute> { inclusive = true } }
             }
@@ -94,7 +97,7 @@ fun EmotvNavHost(
             val state by viewModel.uiState.collectAsStateWithLifecycle()
             LaunchedEffect(state.saved) {
                 if (state.saved) {
-                    navController.navigate(HomeRoute) { popUpTo<PinSetupRoute> { inclusive = true } }
+                    navController.navigate(DashboardRoute) { popUpTo<PinSetupRoute> { inclusive = true } }
                 }
             }
             PinSetupScreen(
@@ -105,17 +108,32 @@ fun EmotvNavHost(
             )
         }
 
-        composable<HomeRoute> {
-            val viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
-            val user by viewModel.user.collectAsStateWithLifecycle()
-            val loggingOut by viewModel.isLoggingOut.collectAsStateWithLifecycle()
-            val loggedOut by viewModel.isLoggedOut.collectAsStateWithLifecycle()
-            LaunchedEffect(loggedOut) {
-                if (loggedOut) {
-                    navController.navigate(LoginRoute) { popUpTo<HomeRoute> { inclusive = true } }
+        composable<DashboardRoute> {
+            val viewModel: DashboardViewModel = viewModel(factory = DashboardViewModel.Factory)
+            val state by viewModel.uiState.collectAsStateWithLifecycle()
+            LaunchedEffect(state.loggedOut) {
+                if (state.loggedOut) {
+                    // Al sacar el dashboard de la pila se descarta su ViewModel y sus datos.
+                    navController.navigate(LoginRoute) { popUpTo<DashboardRoute> { inclusive = true } }
                 }
             }
-            HomeScreen(user = user, isLoggingOut = loggingOut, onLogout = viewModel::logOut)
+            DashboardScreen(
+                state = state,
+                onRefresh = viewModel::refresh,
+                onSelectParticipant = viewModel::selectParticipant,
+                onStartSession = { participant ->
+                    navController.navigate(SessionStartRoute(participant.id, participant.code))
+                },
+                onLogout = viewModel::logOut,
+            )
+        }
+
+        composable<SessionStartRoute> { entry ->
+            val route = entry.toRoute<SessionStartRoute>()
+            SessionStartScreen(
+                participantCode = route.participantCode,
+                onBack = { navController.popBackStack() },
+            )
         }
     }
 }

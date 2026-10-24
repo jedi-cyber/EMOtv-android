@@ -42,6 +42,41 @@ data class UserDto(
     @SerialName("role_name") val roleName: String,
 )
 
+/**
+ * `GET /mobile/summary`. Los participantes solo traen código y edad: el aplicativo nunca
+ * recibe ni muestra su nombre (`ignoreUnknownKeys` descarta cualquier campo adicional).
+ */
+@Serializable
+data class SummaryDto(
+    val user: UserDto,
+    val date: String,
+    @SerialName("today_sessions") val todaySessions: List<SessionDto> = emptyList(),
+    val participants: List<ParticipantDto> = emptyList(),
+)
+
+@Serializable
+data class SessionDto(
+    val id: String,
+    @SerialName("started_at") val startedAt: String,
+    val state: String,
+    @SerialName("guided_phase") val guidedPhase: String? = null,
+    @SerialName("participant_id") val participantId: String,
+    @SerialName("participant_code") val participantCode: String,
+    @SerialName("protocol_name") val protocolName: String? = null,
+)
+
+@Serializable
+data class ParticipantDto(
+    val id: String,
+    val code: String,
+    val kind: String,
+    @SerialName("age_years") val ageYears: Int? = null,
+    val ready: Boolean = false,
+    val missing: List<String> = emptyList(),
+    val warnings: List<String> = emptyList(),
+    @SerialName("last_session") val lastSession: SessionDto? = null,
+)
+
 /** `detail` es un objeto `{code, message}` o, en errores de esquema de FastAPI, una lista. */
 @Serializable
 data class ErrorEnvelopeDto(val detail: JsonElement? = null)
