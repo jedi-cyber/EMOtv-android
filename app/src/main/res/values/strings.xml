@@ -16,6 +16,8 @@
     <string name="startup_update_title">Actualiza EMOtv</string>
     <string name="startup_update_body">Esta versión (%1$s) ya no es compatible con el servidor. Instala la versión %2$s o una más reciente para continuar.</string>
     <string name="startup_check_again">Volver a comprobar</string>
+    <!-- Solo en la versión de depuración. -->
+    <string name="startup_server_url">Servidor: %1$s</string>
 
     <!-- Inicio de sesión -->
     <string name="login_title">Iniciar sesión</string>

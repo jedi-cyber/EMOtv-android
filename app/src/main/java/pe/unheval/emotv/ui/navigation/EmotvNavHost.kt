@@ -13,6 +13,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import kotlinx.serialization.Serializable
+import pe.unheval.emotv.BuildConfig
 import pe.unheval.emotv.domain.usecase.StartDestination
 import pe.unheval.emotv.ui.dashboard.DashboardScreen
 import pe.unheval.emotv.ui.dashboard.DashboardViewModel
@@ -68,7 +69,11 @@ fun EmotvNavHost(
                 }
                 navController.navigate(target) { popUpTo<StartupRoute> { inclusive = true } }
             }
-            StartupScreen(state = state, onRetry = startupViewModel::retry)
+            StartupScreen(
+                state = state,
+                onRetry = startupViewModel::retry,
+                serverUrl = BuildConfig.API_BASE_URL.takeIf { BuildConfig.DEBUG },
+            )
         }
 
         composable<LoginRoute> {

@@ -55,7 +55,35 @@ emotv.apiUrl.release=https://192.168.1.50/
    router.
 
 Al abrirse, el aplicativo consulta `GET /mobile/status`, comprueba la versión mínima y
-avisa si no hay conexión.
+avisa si no hay conexión. En la versión de depuración, ese aviso muestra también la
+dirección del servidor que se intentó.
+
+### Con la tablet conectada por USB (desarrollo)
+
+El `docker-compose.yml` del servidor publica la web y la API solo en `127.0.0.1:8080` del
+equipo, así que la tablet no la alcanza por la red. Por USB, `adb reverse` hace que el
+`127.0.0.1:8080` de la tablet llegue al del equipo:
+
+```properties
+emotv.apiUrl.debug=http://127.0.0.1:8080/
+```
+
+```powershell
+& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" reverse tcp:8080 tcp:8080
+```
+
+Hay que repetir `adb reverse` cada vez que se reconecta el cable o se reinicia la tablet.
+`10.0.2.2` solo existe en el emulador; en una tablet física no lleva a ningún lado.
+
+### Si sigue diciendo que no hay conexión
+
+| Causa | Cómo se nota | Qué hacer |
+| --- | --- | --- |
+| La URL apunta a `10.0.2.2` en una tablet física | Siempre «No hay conexión» | Usar `adb reverse` o la IP del equipo |
+| Puerto equivocado | «No hay conexión» | La web de Docker escucha en `8080`; la API (`8000`) no se publica fuera de Docker |
+| El servidor escucha solo en `127.0.0.1` | Funciona en el equipo, no desde la tablet por wifi | `adb reverse`, o publicar el puerto en la red (`WEB_BIND_ADDRESS`) |
+| Contenedores anteriores a la API móvil | «El servidor no respondió como se esperaba»: `/mobile/status` devuelve la página web | Reconstruir los contenedores del servidor |
+| HTTPS con certificado no reconocido (Caddy `tls internal`, autofirmado) | «No hay conexión» | Ver la sección siguiente |
 
 ### Por qué el servidor debe ofrecer HTTPS
 
