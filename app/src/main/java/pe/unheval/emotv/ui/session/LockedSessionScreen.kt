@@ -42,7 +42,7 @@ import androidx.compose.ui.unit.dp
 import pe.unheval.emotv.R
 import pe.unheval.emotv.domain.model.Answer
 import pe.unheval.emotv.domain.model.GuidedPhase
-import pe.unheval.emotv.domain.model.ParticipantKind
+import pe.unheval.emotv.domain.model.SessionAudience
 import pe.unheval.emotv.domain.model.StopReason
 import pe.unheval.emotv.domain.repository.FrameSource
 import pe.unheval.emotv.ui.components.Callout
@@ -64,6 +64,7 @@ object LockedSessionTags {
     const val UNLOCK = "session_unlock"
     const val RESUME = "session_resume"
     const val END = "session_end"
+    const val CODE = "session_code"
 }
 
 /** Callbacks de la pantalla bloqueada, agrupados para no repetir la firma en cada nivel. */
@@ -83,7 +84,7 @@ class LockedSessionActions(
 )
 
 /**
- * Modo sesión: pantalla fijada, sin barras del sistema y con `FLAG_SECURE`. El participante
+ * Modo sesión: pantalla fijada, sin barras del sistema y con `FLAG_SECURE`. La persona evaluada
  * ve solo el cuestionario, los estímulos y «Quiero parar»; la cámara captura sin vista previa.
  */
 @Composable
@@ -210,6 +211,12 @@ private fun ConductorPanel(state: LockedSessionUiState, actions: LockedSessionAc
                 modifier = Modifier.semantics { heading() },
             )
             Text(body, style = EmotvType.Subtitle, color = EmotvColors.OnDarkMuted)
+            Text(
+                text = stringResource(R.string.session_code, state.code),
+                style = EmotvType.CardTitle,
+                color = EmotvColors.OnDark,
+                modifier = Modifier.testTag(LockedSessionTags.CODE),
+            )
 
             if (pause == SessionPause.Offline) {
                 SecondaryButton(
@@ -294,7 +301,7 @@ private fun UnlockedActions(state: LockedSessionUiState, actions: LockedSessionA
         Column(Modifier.selectableGroup()) {
             val reasons = buildList {
                 add(StopReason.Participant)
-                if (state.participantKind == ParticipantKind.Child) add(StopReason.Guardian)
+                if (state.audience == SessionAudience.Child) add(StopReason.Guardian)
                 add(StopReason.Conductor)
             }
             reasons.forEach { reason ->

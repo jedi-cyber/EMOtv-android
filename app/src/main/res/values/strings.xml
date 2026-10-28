@@ -86,29 +86,11 @@
     <string name="dashboard_chart_description">Gráfico de sesiones de hoy por hora: %1$s en total, entre las %2$s y las %3$s. La hora con más sesiones es las %4$s.</string>
     <string name="dashboard_hour">%1$02d:00</string>
 
-    <string name="dashboard_participants_title">Participantes</string>
-    <string name="dashboard_participants_hint">Elige un participante para iniciar una sesión con él o ella.</string>
-    <string name="dashboard_participants_empty">Todavía no tienes participantes registrados. Regístralos en la web de EMOtv y actualiza esta pantalla.</string>
-    <string name="dashboard_kind_adult">Adulto</string>
-    <string name="dashboard_kind_child">Niño o niña</string>
-    <string name="dashboard_kind_unknown">Participante</string>
-    <plurals name="dashboard_age_years">
-        <item quantity="one">%d año</item>
-        <item quantity="many">%d años</item>
-        <item quantity="other">%d años</item>
-    </plurals>
-    <string name="dashboard_age_missing">Sin edad registrada</string>
-    <string name="dashboard_last_session">Última sesión: %1$s</string>
-    <string name="dashboard_no_sessions">Aún no tiene sesiones.</string>
-    <string name="dashboard_requirements_title">No se puede iniciar una sesión</string>
-
-    <string name="dashboard_missing_participation">Falta la autorización de participación.</string>
-    <string name="dashboard_missing_camera">Falta la autorización para usar la cámara.</string>
-    <string name="dashboard_missing_child_assent">Falta el asentimiento del niño o la niña.</string>
-    <string name="dashboard_missing_revoked">Se retiró una autorización.</string>
-    <string name="dashboard_missing_age">Falta registrar la edad.</string>
-    <string name="dashboard_missing_other">Falta un requisito.</string>
-    <string name="dashboard_missing_where">Eso se registra en la web de EMOtv.</string>
+    <string name="dashboard_recent_title">Sesiones recientes</string>
+    <string name="dashboard_recent_hint">Cada sesión se identifica solo por su código. Los resultados y reportes se revisan en la web de EMOtv.</string>
+    <string name="dashboard_recent_empty">Todavía no tienes sesiones.</string>
+    <string name="dashboard_session_no_code">Sesión sin código</string>
+    <string name="dashboard_no_protocol">Sin protocolo</string>
 
     <string name="dashboard_state_in_progress">En curso</string>
     <string name="dashboard_state_completed">Completada</string>
@@ -116,31 +98,36 @@
     <string name="dashboard_state_created">Creada en la web</string>
     <string name="dashboard_state_recognized">Registrada en la web</string>
     <string name="dashboard_state_unknown">Sin estado</string>
-    <string name="dashboard_phase_confirmation">Confirmación</string>
     <string name="dashboard_phase_pre_questionnaire">Cuestionario previo</string>
     <string name="dashboard_phase_before_analyzer">Imagen abstracta inicial</string>
     <string name="dashboard_phase_calibration">Calibración</string>
     <string name="dashboard_phase_stimuli">Estímulos</string>
     <string name="dashboard_phase_post_questionnaire">Cuestionario posterior</string>
+    <string name="dashboard_phase_live">En vivo</string>
     <string name="dashboard_phase_finished">Finalizada</string>
     <string name="dashboard_phase_stopped">Interrumpida</string>
 
-    <string name="dashboard_start">Iniciar sesión con un participante</string>
-    <string name="dashboard_start_no_participants">Necesitas al menos un participante registrado en la web.</string>
-    <string name="dashboard_start_select">Elige un participante de la lista.</string>
-    <string name="dashboard_start_ready">Se iniciará la sesión con %1$s.</string>
-    <string name="dashboard_start_blocked">No se puede iniciar una sesión con %1$s: %2$s</string>
+    <string name="dashboard_start">Iniciar una sesión</string>
+    <string name="dashboard_start_hint">En el siguiente paso eliges un protocolo o ninguno.</string>
 
-    <string name="dashboard_web_title">Participantes, protocolos y cuestionarios se gestionan en la web</string>
-    <string name="dashboard_web_body">Para registrar o editar participantes, sus autorizaciones, protocolos o cuestionarios, ingresa a la web de EMOtv.</string>
+    <string name="dashboard_web_title">Protocolos y cuestionarios se gestionan en la web</string>
+    <string name="dashboard_web_body">Para armar o editar protocolos y cuestionarios, o revisar los reportes, ingresa a la web de EMOtv.</string>
+
+    <!-- Con quién es la sesión (`audience`) -->
+    <string name="audience_own">Conmigo</string>
+    <string name="audience_adult">Un adulto</string>
+    <string name="audience_child">Un niño o niña</string>
+    <string name="audience_unknown">Otro público</string>
 
     <!-- Preparación de la sesión -->
     <string name="setup_title">Preparar la sesión</string>
-    <string name="setup_subtitle">Participante %1$s</string>
-    <string name="setup_protocol_title">Protocolo</string>
+    <string name="setup_subtitle">Elige qué aplicar, revisa la cámara y confirma antes de entregar la tablet.</string>
+    <string name="setup_protocol_title">¿Qué vas a aplicar?</string>
     <string name="setup_protocol_loading">Cargando los protocolos…</string>
-    <string name="setup_protocol_empty">No hay protocolos que puedas aplicar a este participante</string>
-    <string name="setup_protocol_empty_body">Los protocolos se arman en la web de EMOtv. Con niños, el protocolo debe estar preparado para niños y aprobado por el docente.</string>
+    <string name="setup_protocol_empty_body">No tienes protocolos utilizables. Se arman en la web de EMOtv, en Protocolos; igual puedes empezar sin protocolo.</string>
+    <string name="setup_no_protocol">Sin protocolo</string>
+    <string name="setup_no_protocol_body">Solo se analiza la expresión facial. Terminas tú la sesión.</string>
+    <string name="setup_audience_title">¿Con quién es la sesión?</string>
     <string name="setup_protocol_version">Versión %1$d</string>
     <plurals name="setup_protocol_steps">
         <item quantity="one">%d estímulo</item>
@@ -149,23 +136,15 @@
     </plurals>
     <string name="setup_protocol_pre">Cuestionario previo</string>
     <string name="setup_protocol_post">Cuestionario posterior</string>
-    <string name="setup_protocol_for_children">Para niños</string>
-    <string name="setup_continue">Continuar</string>
     <string name="setup_back">Volver al inicio</string>
-    <string name="setup_selected_protocol">Protocolo: %1$s</string>
 
-    <string name="setup_confirmation_title">Confirmación previa</string>
-    <string name="setup_reminder_title">Recordatorio</string>
-    <string name="setup_confirm_commitment">Leí el recordatorio del compromiso de confidencialidad.</string>
-    <string name="setup_confirm_authorization">El participante dio su autorización para esta sesión.</string>
-    <string name="setup_confirm_guardian">El padre, la madre o el tutor del niño o la niña está presente.</string>
-    <string name="setup_confirm_assent">El niño o la niña dio su asentimiento para participar.</string>
+    <string name="setup_confirmation_title">Confirmación</string>
 
     <string name="setup_camera_title">Cámara e iluminación</string>
     <string name="setup_camera_body">Revisa que el rostro se vea completo, de frente y con buena luz. La vista previa no se graba ni se envía.</string>
     <string name="setup_camera_preview_description">Vista previa de la cámara frontal</string>
     <string name="setup_camera_why_title">Para qué se usa la cámara</string>
-    <string name="setup_camera_why_body">Durante la sesión, la cámara frontal toma cuadros del rostro del participante y los envía al servidor de EMOtv, que estima la expresión facial y los descarta. No se graba video ni se guarda ninguna imagen en la tablet. Antes de empezar, la vista previa sirve para revisar la iluminación.</string>
+    <string name="setup_camera_why_body">Durante la sesión, la cámara frontal toma cuadros del rostro de la persona y los envía al servidor de EMOtv, que estima la expresión facial y los descarta. No se graba video ni se guarda ninguna imagen en la tablet. Antes de empezar, la vista previa sirve para revisar la iluminación.</string>
     <string name="setup_camera_permission">La cámara no tiene permiso</string>
     <string name="setup_camera_permission_body">Sin la cámara frontal no se puede conducir la sesión. Vuelve a permitirla o actívala en los ajustes de la tablet.</string>
     <string name="setup_camera_allow">Permitir la cámara</string>
@@ -174,12 +153,12 @@
     <string name="setup_camera_unavailable_body">Cierra otras aplicaciones que usen la cámara y vuelve a intentarlo.</string>
     <string name="setup_lighting_checked">Revisé la iluminación y el encuadre.</string>
 
-    <string name="setup_missing_confirmations">Marca todas las confirmaciones para continuar.</string>
+    <string name="setup_missing_plan">Elige un protocolo, o sin protocolo y con quién es la sesión.</string>
     <string name="setup_missing_camera">La cámara frontal debe estar funcionando.</string>
     <string name="setup_missing_lighting">Revisa la iluminación en la vista previa.</string>
-    <string name="setup_lock_notice">Al iniciar, la pantalla queda fijada para el participante. Para salir hará falta tu PIN.</string>
+    <string name="setup_missing_confirmation">Marca la confirmación para continuar.</string>
+    <string name="setup_lock_notice">Al iniciar, la pantalla queda fijada para la persona evaluada. Para salir hará falta tu PIN.</string>
     <string name="setup_hand_over">Iniciar y entregar la tablet</string>
-    <string name="setup_cancel">Cancelar la sesión</string>
 
     <string name="session_error_network">No hay conexión con el servidor</string>
     <string name="session_error_network_body">Revisa la conexión a internet de la tablet y vuelve a intentarlo.</string>
@@ -188,12 +167,12 @@
     <string name="session_error_account_ended">La sesión de tu cuenta se cerró</string>
     <string name="session_error_account_ended_body">Vuelve al inicio e inicia sesión de nuevo.</string>
 
-    <!-- Modo sesión (pantalla del participante) -->
+    <!-- Modo sesión (pantalla de la persona evaluada) -->
     <string name="session_loading">Preparando la sesión…</string>
     <string name="session_stop">Quiero parar</string>
     <string name="session_stop_description">Quiero parar. Pausa la sesión y llama a quien la conduce.</string>
     <string name="session_not_pinned">La pantalla no quedó fijada</string>
-    <string name="session_not_pinned_body">Fíjala para que el participante no salga de la sesión.</string>
+    <string name="session_not_pinned_body">Fíjala para que la persona no salga de la sesión.</string>
     <string name="session_pin_screen">Fijar la pantalla</string>
 
     <string name="questionnaire_required">Obligatoria</string>
@@ -210,7 +189,10 @@
     <string name="calibration_start">Empezar</string>
     <string name="calibration_running">Mantén el rostro relajado y mira hacia la pantalla.</string>
     <string name="calibration_progress">Avance de la preparación</string>
-    <string name="calibration_done">Listo. En un momento empiezan las imágenes.</string>
+    <string name="calibration_done">Listo. En un momento sigue la sesión.</string>
+
+    <string name="live_title">Sesión en curso</string>
+    <string name="live_body">Mira hacia la pantalla con naturalidad. Quien conduce la sesión la terminará.</string>
 
     <string name="stimulus_description">Imagen de la sesión</string>
     <string name="stimulus_step">Imagen %1$d de %2$d</string>
@@ -229,10 +211,12 @@
     <string name="session_stopped_title">La sesión se detuvo</string>
     <string name="session_stopped_body">Gracias. Entrega la tablet a quien conduce la sesión.</string>
     <string name="session_hand_back">Entregar la tablet</string>
+    <!-- Se muestra al empezar y al terminar, para anotarlo en el formato firmado. -->
+    <string name="session_code">Código de la sesión: %1$s</string>
 
     <!-- Modo sesión (panel de quien conduce) -->
     <string name="pause_participant_title">Sesión en pausa</string>
-    <string name="pause_participant_body">El participante pidió parar. No se están tomando capturas. Quien conduce la sesión ingresa su PIN para continuar o terminar.</string>
+    <string name="pause_participant_body">La persona pidió parar. No se están tomando capturas. Quien conduce la sesión ingresa su PIN para continuar o terminar.</string>
     <string name="pause_exit_title">Salir del modo sesión</string>
     <string name="pause_exit_body">Quien conduce la sesión ingresa su PIN para salir.</string>
     <string name="pause_back_to_session">Volver a la sesión</string>
@@ -257,10 +241,10 @@
 
     <string name="pause_resume">Continuar la sesión</string>
     <string name="pause_reason_title">¿Quién pidió terminar?</string>
-    <string name="pause_reason_participant">El participante</string>
+    <string name="pause_reason_participant">La persona evaluada</string>
     <string name="pause_reason_guardian">El padre, la madre o el tutor</string>
     <string name="pause_reason_conductor">Quien conduce la sesión</string>
     <string name="pause_end">Terminar la sesión</string>
     <string name="pause_go_home">Volver al inicio</string>
-    <string name="pause_report_notice">El reporte se redacta y se revisa en la web de EMOtv. Lo que el participante dijo ver en una imagen abstracta se registra desde la web.</string>
+    <string name="pause_report_notice">Anota el código en el formato firmado. El reporte se redacta y se revisa en la web de EMOtv. Lo que la persona dijo ver en una imagen abstracta se registra desde la web.</string>
 </resources>

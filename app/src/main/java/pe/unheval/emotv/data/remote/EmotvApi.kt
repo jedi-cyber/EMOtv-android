@@ -31,14 +31,8 @@ interface EmotvApi {
         @Query("utc_offset_minutes") utcOffsetMinutes: Int,
     ): SummaryDto
 
-    @GET("mobile/protocols")
-    suspend fun protocols(@Query("participant_id") participantId: String): List<ProtocolDto>
-
     @POST("mobile/sessions")
     suspend fun startSession(@Body body: StartSessionRequestDto): StartSessionDto
-
-    @POST("mobile/sessions/{id}/confirm")
-    suspend fun confirm(@Path("id") sessionId: String, @Body body: ConfirmRequestDto): SessionStepDto
 
     @GET("mobile/sessions/{id}/next")
     suspend fun next(@Path("id") sessionId: String): SessionStepDto
@@ -60,6 +54,10 @@ interface EmotvApi {
     /** Cuerpo `image/jpeg` de hasta 1 000 000 bytes. */
     @POST("mobile/sessions/{id}/frames")
     suspend fun sendFrame(@Path("id") sessionId: String, @Body jpeg: RequestBody): FrameResultDto
+
+    /** Termina una sesión sin protocolo (fase `live`). */
+    @POST("mobile/sessions/{id}/finish")
+    suspend fun finish(@Path("id") sessionId: String): PhaseDto
 
     @POST("mobile/sessions/{id}/stop")
     suspend fun stop(@Path("id") sessionId: String, @Body body: StopRequestDto): PhaseDto

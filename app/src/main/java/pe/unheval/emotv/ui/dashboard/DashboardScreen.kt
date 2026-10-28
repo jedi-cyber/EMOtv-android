@@ -18,16 +18,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -48,7 +44,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
@@ -56,9 +51,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import pe.unheval.emotv.R
 import pe.unheval.emotv.domain.model.GuidedPhase
-import pe.unheval.emotv.domain.model.MissingRequirement
-import pe.unheval.emotv.domain.model.Participant
-import pe.unheval.emotv.domain.model.ParticipantKind
+import pe.unheval.emotv.domain.model.SessionAudience
 import pe.unheval.emotv.domain.model.SessionState
 import pe.unheval.emotv.domain.model.SessionSummary
 import pe.unheval.emotv.ui.components.Callout
@@ -90,20 +83,19 @@ object DashboardTags {
     const val START = "dashboard_start"
     const val ACCOUNT_MENU = "dashboard_account_menu"
     const val LOGOUT = "dashboard_logout"
-    fun participant(id: String) = "dashboard_participant_$id"
+    fun recentSession(id: String) = "dashboard_recent_$id"
 }
 
 /**
- * Dashboard de quien conduce las sesiones. Muestra participantes solo por código y edad.
- * No permite crear ni editar participantes, protocolos ni cuestionarios: eso es de la web.
+ * Dashboard de quien conduce las sesiones. Cada sesión se identifica solo por su código.
+ * No permite crear ni editar protocolos ni cuestionarios: eso es de la web.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     state: DashboardUiState,
     onRefresh: () -> Unit,
-    onSelectParticipant: (String) -> Unit,
-    onStartSession: (Participant) -> Unit,
+    onStartSession: () -> Unit,
     onLogout: () -> Unit,
 ) {
     SecureWindow()
@@ -161,39 +153,17 @@ fun DashboardScreen(
 
                 if (content != null) {
                     item(key = "today") { TodayCard(content, zone) }
-                    item(key = "participants_header") {
+                    item(key = "recent_header") {
                         SectionHeader(
-                            title = stringResource(R.string.dashboard_participants_title),
+                            title = stringResource(R.string.dashboard_recent_title),
                             hint = stringResource(
-                                if (content.participants.isEmpty()) R.string.dashboard_participants_empty
-                                else R.string.dashboard_participants_hint,
+                                if (content.recentSessions.isEmpty()) R.string.dashboard_recent_empty
+                                else R.string.dashboard_recent_hint,
                             ),
                         )
                     }
-                    if (content.participants.isEmpty()) {
-                        item(key = "participants_empty") {
-                            SecondaryButton(
-                                text = stringResource(R.string.dashboard_refresh),
-                                onClick = onRefresh,
-                                loading = state.isRefreshing,
-                            )
-                        }
-                    } else {
-                        item(key = "participants") {
-                            Column(
-                                modifier = Modifier.selectableGroup(),
-                                verticalArrangement = Arrangement.spacedBy(EmotvSpacing.Sm),
-                            ) {
-                                content.participants.forEach { participant ->
-                                    ParticipantCard(
-                                        participant = participant,
-                                        selected = participant.id == state.selectedParticipantId,
-                                        zone = zone,
-                                        onSelect = { onSelectParticipant(participant.id) },
-                                    )
-                                }
-                            }
-                        }
+                    if (content.recentSessions.isNotEmpty()) {
+                        item(key = "recent") { RecentSessionsCard(content.recentSessions, zone) }
                     }
                     item(key = "web") {
                         Callout(
@@ -206,7 +176,7 @@ fun DashboardScreen(
             }
         }
         if (content != null) {
-            StartBar(availability = state.startAvailability, onStartSession = onStartSession)
+            StartBar(onStartSession = onStartSession)
         }
     }
 }
@@ -422,7 +392,7 @@ private fun TodaySessionRow(session: SessionSummary, zone: ZoneId) {
             color = EmotvColors.Ink,
         )
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = session.participantCode, style = EmotvType.BodySmStrong, color = EmotvColors.Ink)
+            Text(text = sessionCode(session), style = EmotvType.BodySmStrong, color = EmotvColors.Ink)
             sessionDetail(session)?.let {
                 Text(text = it, style = EmotvType.Caption, color = EmotvColors.Steel)
             }
@@ -432,122 +402,48 @@ private fun TodaySessionRow(session: SessionSummary, zone: ZoneId) {
 }
 
 @Composable
-private fun ParticipantCard(
-    participant: Participant,
-    selected: Boolean,
-    zone: ZoneId,
-    onSelect: () -> Unit,
-) {
+private fun RecentSessionsCard(sessions: List<SessionSummary>, zone: ZoneId) {
+    EmotvCard {
+        Column {
+            sessions.forEachIndexed { index, session ->
+                if (index > 0) HorizontalDivider(color = EmotvColors.Hairline)
+                RecentSessionRow(session, zone)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentSessionRow(session: SessionSummary, zone: ZoneId) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(EmotvShapes.Lg)
-            .background(EmotvColors.Canvas)
-            .border(
-                width = if (selected) 2.dp else 1.dp,
-                color = if (selected) EmotvColors.Primary else EmotvColors.Hairline,
-                shape = EmotvShapes.Lg,
-            )
-            .selectable(selected = selected, onClick = onSelect, role = Role.RadioButton)
-            .testTag(DashboardTags.participant(participant.id))
-            .padding(EmotvSpacing.Md),
+            .heightIn(min = 52.dp)
+            .padding(vertical = EmotvSpacing.Xs)
+            .testTag(DashboardTags.recentSession(session.id))
+            .semantics(mergeDescendants = true) {},
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(EmotvSpacing.Sm),
     ) {
-        RadioButton(
-            selected = selected,
-            onClick = null,
-            colors = RadioButtonDefaults.colors(
-                selectedColor = EmotvColors.Primary,
-                unselectedColor = EmotvColors.HairlineStrong,
-            ),
-            modifier = Modifier.padding(top = 2.dp),
-        )
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(EmotvSpacing.Xxs),
         ) {
-            Text(text = participant.code, style = EmotvType.CardTitle, color = EmotvColors.Ink)
-            Text(text = participantMeta(participant), style = EmotvType.BodySm, color = EmotvColors.Steel)
-            val last = participant.lastSession
-            if (last == null) {
-                Text(
-                    text = stringResource(R.string.dashboard_no_sessions),
-                    style = EmotvType.BodySm,
-                    color = EmotvColors.Slate,
-                )
-            } else {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(EmotvSpacing.Xs),
-                ) {
-                    Text(
-                        text = stringResource(
-                            R.string.dashboard_last_session,
-                            last.startedAt.atZone(zone).format(DateTimeFormat),
-                        ),
-                        style = EmotvType.BodySm,
-                        color = EmotvColors.Charcoal,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    SessionStateChip(last.state)
-                }
-                sessionDetail(last)?.let {
-                    Text(text = it, style = EmotvType.Caption, color = EmotvColors.Steel)
-                }
-            }
-            if (!participant.ready) {
-                RequirementNotice(participant)
-            }
+            Text(text = sessionCode(session), style = EmotvType.CardTitle, color = EmotvColors.Ink)
+            Text(
+                text = session.startedAt.atZone(zone).format(DateTimeFormat),
+                style = EmotvType.BodySm,
+                color = EmotvColors.Charcoal,
+            )
+            Text(text = recentDetail(session), style = EmotvType.Caption, color = EmotvColors.Steel)
         }
+        SessionStateChip(session.state)
     }
 }
 
-/** Aviso visible de lo que falta. Sin región en vivo: es parte de la tarjeta, no un evento. */
+/** Barra fija abajo: el protocolo (o ninguno) se elige en el siguiente paso. */
 @Composable
-private fun RequirementNotice(participant: Participant) {
-    Column(
-        modifier = Modifier
-            .padding(top = EmotvSpacing.Xs)
-            .fillMaxWidth()
-            .clip(EmotvShapes.Md)
-            .background(EmotvColors.WarningSoft)
-            .drawBehind {
-                drawRect(EmotvColors.Warning, size = Size(3.dp.toPx(), size.height))
-            }
-            .padding(start = EmotvSpacing.Sm + 3.dp, end = EmotvSpacing.Sm)
-            .padding(vertical = EmotvSpacing.Sm),
-        verticalArrangement = Arrangement.spacedBy(EmotvSpacing.Xxs),
-    ) {
-        Text(
-            text = stringResource(R.string.dashboard_requirements_title),
-            style = EmotvType.BodySmStrong,
-            color = EmotvColors.Ink,
-        )
-        requirementLines(participant).forEach {
-            Text(text = it, style = EmotvType.BodySm, color = EmotvColors.Charcoal)
-        }
-        Text(
-            text = stringResource(R.string.dashboard_missing_where),
-            style = EmotvType.Caption,
-            color = EmotvColors.Slate,
-        )
-    }
-}
-
-/** Botón principal fijo abajo, con una línea que explica por qué está deshabilitado. */
-@Composable
-private fun StartBar(availability: StartAvailability, onStartSession: (Participant) -> Unit) {
-    val explanation = when (availability) {
-        StartAvailability.NoParticipants -> stringResource(R.string.dashboard_start_no_participants)
-        StartAvailability.NothingSelected -> stringResource(R.string.dashboard_start_select)
-        is StartAvailability.Ready ->
-            stringResource(R.string.dashboard_start_ready, availability.participant.code)
-        is StartAvailability.Blocked -> stringResource(
-            R.string.dashboard_start_blocked,
-            availability.participant.code,
-            requirementLines(availability.participant).joinToString(" "),
-        )
-    }
+private fun StartBar(onStartSession: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -565,17 +461,13 @@ private fun StartBar(availability: StartAvailability, onStartSession: (Participa
             verticalArrangement = Arrangement.spacedBy(EmotvSpacing.Xs),
         ) {
             Text(
-                text = explanation,
+                text = stringResource(R.string.dashboard_start_hint),
                 style = EmotvType.BodySm,
-                color = if (availability is StartAvailability.Blocked) EmotvColors.Warning else EmotvColors.Charcoal,
-                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                color = EmotvColors.Charcoal,
             )
             PrimaryButton(
                 text = stringResource(R.string.dashboard_start),
-                onClick = {
-                    if (availability is StartAvailability.Ready) onStartSession(availability.participant)
-                },
-                enabled = availability is StartAvailability.Ready,
+                onClick = onStartSession,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag(DashboardTags.START),
@@ -599,20 +491,25 @@ private fun SessionStateChip(state: SessionState) {
 }
 
 @Composable
-private fun participantMeta(participant: Participant): String {
-    val kind = stringResource(
-        when (participant.kind) {
-            ParticipantKind.Adult -> R.string.dashboard_kind_adult
-            ParticipantKind.Child -> R.string.dashboard_kind_child
-            ParticipantKind.Unknown -> R.string.dashboard_kind_unknown
-        },
-    )
-    val age = participant.ageYears?.let { pluralStringResource(R.plurals.dashboard_age_years, it, it) }
-        ?: stringResource(R.string.dashboard_age_missing)
-    return "$kind · $age"
+private fun sessionCode(session: SessionSummary): String =
+    session.code ?: stringResource(R.string.dashboard_session_no_code)
+
+/** Con quién fue y qué protocolo se aplicó (o ninguno). */
+@Composable
+private fun recentDetail(session: SessionSummary): String {
+    val audience = audienceLabel(session.audience)?.let { stringResource(it) }
+    val protocol = session.protocolName ?: stringResource(R.string.dashboard_no_protocol)
+    return listOfNotNull(audience, protocol).joinToString(" · ")
 }
 
-/** Protocolo y, si la sesión guiada sigue en curso, su fase. */
+private fun audienceLabel(audience: SessionAudience): Int? = when (audience) {
+    SessionAudience.Own -> R.string.audience_own
+    SessionAudience.Adult -> R.string.audience_adult
+    SessionAudience.Child -> R.string.audience_child
+    SessionAudience.Unknown -> null
+}
+
+/** Protocolo y, si la sesión sigue en curso, su fase. */
 @Composable
 private fun sessionDetail(session: SessionSummary): String? {
     val phase = session.guidedPhase
@@ -621,30 +518,13 @@ private fun sessionDetail(session: SessionSummary): String? {
     return listOfNotNull(session.protocolName, phase).joinToString(" · ").ifEmpty { null }
 }
 
-/** Textos del servidor; si no llegaron, los del aplicativo según `missing`. */
-@Composable
-private fun requirementLines(participant: Participant): List<String> {
-    if (participant.warnings.isNotEmpty()) return participant.warnings
-    val missing = participant.missing.ifEmpty { listOf(MissingRequirement.Other) }
-    return missing.map { stringResource(missingLabel(it)) }
-}
-
-private fun missingLabel(requirement: MissingRequirement): Int = when (requirement) {
-    MissingRequirement.Participation -> R.string.dashboard_missing_participation
-    MissingRequirement.Camera -> R.string.dashboard_missing_camera
-    MissingRequirement.ChildAssent -> R.string.dashboard_missing_child_assent
-    MissingRequirement.Revoked -> R.string.dashboard_missing_revoked
-    MissingRequirement.Age -> R.string.dashboard_missing_age
-    MissingRequirement.Other -> R.string.dashboard_missing_other
-}
-
 private fun phaseLabel(phase: GuidedPhase): Int = when (phase) {
-    GuidedPhase.Confirmation -> R.string.dashboard_phase_confirmation
     GuidedPhase.PreQuestionnaire -> R.string.dashboard_phase_pre_questionnaire
     GuidedPhase.BeforeAnalyzer -> R.string.dashboard_phase_before_analyzer
     GuidedPhase.Calibration -> R.string.dashboard_phase_calibration
     GuidedPhase.Stimuli -> R.string.dashboard_phase_stimuli
     GuidedPhase.PostQuestionnaire -> R.string.dashboard_phase_post_questionnaire
+    GuidedPhase.Live -> R.string.dashboard_phase_live
     GuidedPhase.Finished -> R.string.dashboard_phase_finished
     GuidedPhase.Stopped -> R.string.dashboard_phase_stopped
 }

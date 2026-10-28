@@ -26,6 +26,7 @@ import pe.unheval.emotv.ui.pin.PinSetupViewModel
 import pe.unheval.emotv.ui.session.LockedSessionActions
 import pe.unheval.emotv.ui.session.LockedSessionScreen
 import pe.unheval.emotv.ui.session.LockedSessionViewModel
+import pe.unheval.emotv.ui.session.SessionSetupActions
 import pe.unheval.emotv.ui.session.SessionSetupScreen
 import pe.unheval.emotv.ui.session.SessionSetupViewModel
 import pe.unheval.emotv.ui.startup.StartupScreen
@@ -37,9 +38,9 @@ import pe.unheval.emotv.ui.startup.StartupViewModel
 @Serializable data class PasswordChangeRoute(val message: String? = null)
 @Serializable data object PinSetupRoute
 @Serializable data object DashboardRoute
-// Solo el código: el nombre del participante nunca llega al aplicativo.
-@Serializable data class SessionSetupRoute(val participantId: String, val participantCode: String)
-@Serializable data class LockedSessionRoute(val sessionId: String, val participantKind: String)
+@Serializable data object SessionSetupRoute
+// Solo el código aleatorio de la sesión: el aplicativo nunca recibe datos de la persona evaluada.
+@Serializable data class LockedSessionRoute(val sessionId: String, val code: String, val audience: String)
 
 // El dashboard vuelve a pedir el resumen al regresar de una sesión.
 private const val REFRESH_DASHBOARD = "refresh_dashboard"
@@ -142,10 +143,7 @@ fun EmotvNavHost(
             DashboardScreen(
                 state = state,
                 onRefresh = viewModel::refresh,
-                onSelectParticipant = viewModel::selectParticipant,
-                onStartSession = { participant ->
-                    navController.navigate(SessionSetupRoute(participant.id, participant.code))
-                },
+                onStartSession = { navController.navigate(SessionSetupRoute) },
                 onLogout = viewModel::logOut,
             )
         }
@@ -155,7 +153,7 @@ fun EmotvNavHost(
             val state by viewModel.uiState.collectAsStateWithLifecycle()
             LaunchedEffect(state.locked) {
                 val locked = state.locked ?: return@LaunchedEffect
-                navController.navigate(LockedSessionRoute(locked.sessionId, locked.participantKind.apiValue)) {
+                navController.navigate(LockedSessionRoute(locked.sessionId, locked.code, locked.audience.apiValue)) {
                     popUpTo<SessionSetupRoute> { inclusive = true }
                 }
                 viewModel.onNavigated()
@@ -165,14 +163,16 @@ fun EmotvNavHost(
             }
             SessionSetupScreen(
                 state = state,
-                onRetryProtocols = viewModel::retryProtocols,
-                onSelectProtocol = viewModel::selectProtocol,
-                onContinue = viewModel::startSession,
-                onCheckedChange = viewModel::setChecked,
-                onCameraReadyChange = viewModel::onCameraReady,
-                onLightingCheckedChange = viewModel::setLightingChecked,
-                onHandOver = viewModel::handOver,
-                onCancel = viewModel::cancel,
+                actions = SessionSetupActions(
+                    onRetry = viewModel::retry,
+                    onChoose = viewModel::choose,
+                    onChooseAudience = viewModel::chooseAudience,
+                    onConfirmedChange = viewModel::setConfirmed,
+                    onCameraReadyChange = viewModel::onCameraReady,
+                    onLightingCheckedChange = viewModel::setLightingChecked,
+                    onHandOver = viewModel::handOver,
+                    onCancel = viewModel::cancel,
+                ),
             )
         }
 

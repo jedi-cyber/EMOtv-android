@@ -4,5 +4,5 @@ data class ServerStatus(
     val apiVersion: String,
     val minAppVersion: String,
     val loginAvailable: Boolean,
-    val participantSessionsAvailable: Boolean,
+    val sessionsAvailable: Boolean,
 )

@@ -25,7 +25,7 @@ import pe.unheval.emotv.data.remote.StimulusDto
 import pe.unheval.emotv.domain.model.Answer
 import pe.unheval.emotv.domain.model.CaptureIssue
 import pe.unheval.emotv.domain.model.GuidedPhase
-import pe.unheval.emotv.domain.model.ParticipantKind
+import pe.unheval.emotv.domain.model.SessionAudience
 import pe.unheval.emotv.domain.model.StopReason
 import pe.unheval.emotv.domain.usecase.VerifyPinUseCase
 import pe.unheval.emotv.testing.FakeEmotvApi
@@ -48,10 +48,11 @@ class LockedSessionViewModelTest {
     private val server = ScriptedServer(graph.api)
     private val camera = FakeFrameSource()
 
-    private fun viewModel(kind: ParticipantKind = ParticipantKind.Adult) = store.create {
+    private fun viewModel(audience: SessionAudience = SessionAudience.Adult) = store.create {
         LockedSessionViewModel(
             sessionId = "sesion-1",
-            participantKind = kind,
+            code = "S-4F7K2Q",
+            audience = audience,
             sessions = graph.sessionRepository,
             verifyPin = VerifyPinUseCase(graph.pinRepository),
         )
@@ -71,7 +72,8 @@ class LockedSessionViewModelTest {
 
     /**
      * El ViewModel consulta al servidor sin parar mientras la sesión sigue; se cancela al
-     * final para que unTest no espere a que el planificador quede libre.
+     * final para que 
+unTest no espere a que el planificador quede libre.
      */
     private fun sessionTest(body: suspend TestScope.() -> Unit) = runTest {
         try {
@@ -106,7 +108,7 @@ class LockedSessionViewModelTest {
         assertEquals(JsonObject(mapOf("animo" to JsonPrimitive(3))), body.answers)
         assertTrue("Las respuestas se descartan al enviarlas", vm.state.answers.isEmpty())
 
-        // Calibración: espera a que el participante esté listo.
+        // Calibración: espera a que la persona esté lista.
         assertEquals(GuidedPhase.Calibration, vm.state.step?.phase)
         advanceTimeBy(1_000)
         assertTrue(camera.captured.isEmpty())
@@ -262,7 +264,7 @@ class LockedSessionViewModelTest {
     fun `con el PIN se puede devolver la tablet y la sesión sigue`() = sessionTest {
         server.phase = "stimuli"
         server.advanceAfterFrames = Int.MAX_VALUE
-        val vm = viewModel(ParticipantKind.Child)
+        val vm = viewModel(SessionAudience.Child)
         vm.requestStop()
         vm.onPinChange(PIN)
         vm.submitPin()
@@ -278,7 +280,7 @@ class LockedSessionViewModelTest {
 
     @Test
     fun `el tutor puede pedir terminar la sesión de un niño`() = sessionTest {
-        val vm = viewModel(ParticipantKind.Child)
+        val vm = viewModel(SessionAudience.Child)
         vm.requestStop()
         vm.onPinChange(PIN)
         vm.submitPin()
@@ -286,6 +288,57 @@ class LockedSessionViewModelTest {
         vm.endSession()
 
         assertEquals("guardian", graph.api.stopRequests.single().second.reason)
+    }
+
+    @Test
+    fun `sin protocolo calibra, captura en vivo y quien conduce la termina con su código`() = sessionTest {
+        server.hasProtocol = false
+        server.phase = "calibration"
+        val vm = viewModel(SessionAudience.Own)
+        vm.startCalibration()
+
+        // Tres cuadros de calibración y el servidor pasa a la lectura en vivo.
+        advanceTimeBy(1_500)
+        assertEquals(GuidedPhase.Live, vm.state.step?.phase)
+        val captured = graph.api.receivedFrames.size
+        advanceTimeBy(1_000)
+        assertTrue("En vivo sigue enviando cuadros", graph.api.receivedFrames.size > captured)
+
+        vm.requestExit()
+        vm.onPinChange(PIN)
+        vm.submitPin()
+        assertEquals(StopReason.Conductor, vm.state.stopReason)
+        vm.endSession()
+
+        assertEquals(listOf("sesion-1"), graph.api.finishRequests)
+        assertTrue("Terminar no la cancela", graph.api.stopRequests.isEmpty())
+        // Queda terminada y en pantalla con su código, sin capturar, hasta volver al inicio.
+        assertEquals(GuidedPhase.Finished, vm.state.step?.phase)
+        assertFalse(vm.state.isCapturing)
+        assertFalse(vm.state.exited)
+        assertEquals("S-4F7K2Q", vm.state.code)
+        val sent = graph.api.receivedFrames.size
+        advanceTimeBy(1_000)
+        assertEquals(sent, graph.api.receivedFrames.size)
+
+        vm.endSession()
+        assertTrue(vm.state.exited)
+        assertNoCaptureLeft()
+    }
+
+    @Test
+    fun `sin protocolo, si la persona pide parar, la sesión se interrumpe`() = sessionTest {
+        server.hasProtocol = false
+        server.phase = "live"
+        val vm = viewModel()
+        vm.requestStop()
+        vm.onPinChange(PIN)
+        vm.submitPin()
+        vm.endSession()
+
+        assertEquals("participant", graph.api.stopRequests.single().second.reason)
+        assertTrue(graph.api.finishRequests.isEmpty())
+        assertTrue(vm.state.exited)
     }
 
     @Test
@@ -305,7 +358,7 @@ class LockedSessionViewModelTest {
     }
 
     @Test
-    fun `la calidad informada por el servidor orienta al participante`() = sessionTest {
+    fun `la calidad informada por el servidor orienta a la persona`() = sessionTest {
         server.phase = "stimuli"
         server.advanceAfterFrames = Int.MAX_VALUE
         server.captureStatus = listOf("too_dark")
@@ -380,6 +433,7 @@ private class ScriptedServer(private val api: FakeEmotvApi) {
     var advanceAfterFrames = 0
     var captureStatus: List<String> = emptyList()
     var preAnswered = false
+    var hasProtocol = true
     private var framesInPhase = 0
     val imageUrl = "/mobile/stimulus-images/sesion-1/estimulo-1?expires=1792764370&signature=abc"
 
@@ -396,7 +450,7 @@ private class ScriptedServer(private val api: FakeEmotvApi) {
             val limit = if (advanceAfterFrames > 0) advanceAfterFrames else if (phase == "calibration") 3 else 2
             if (framesInPhase >= limit) {
                 when (phase) {
-                    "calibration" -> moveTo("stimuli")
+                    "calibration" -> moveTo(if (hasProtocol) "stimuli" else "live")
                     "stimuli" -> moveTo("post_questionnaire")
                 }
             }
@@ -432,6 +486,7 @@ private class ScriptedServer(private val api: FakeEmotvApi) {
             ),
         )
         "post_questionnaire" -> stepDto(phase = phase, questionnaire = questionnaire("post"))
+        "live" -> stepDto(phase = phase, sendFrames = true, frameIntervalMs = 500, captureStatus = captureStatus, stepCount = 0)
         else -> stepDto(phase = phase)
     }
 

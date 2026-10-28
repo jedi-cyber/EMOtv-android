@@ -49,7 +49,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import pe.unheval.emotv.R
-import pe.unheval.emotv.domain.model.ConfirmationItem
+import pe.unheval.emotv.domain.model.SessionAudience
 import pe.unheval.emotv.domain.model.SessionProtocol
 import pe.unheval.emotv.ui.components.CameraFrame
 import pe.unheval.emotv.ui.components.Callout
@@ -70,106 +70,176 @@ import pe.unheval.emotv.ui.theme.EmotvSpacing
 import pe.unheval.emotv.ui.theme.EmotvType
 
 object SessionSetupTags {
-    const val CONTINUE = "setup_continue"
+    const val NO_PROTOCOL = "setup_no_protocol"
+    const val CONFIRM = "setup_confirm"
     const val HAND_OVER = "setup_hand_over"
     const val ALLOW_CAMERA = "setup_allow_camera"
+    fun protocol(id: String) = "setup_protocol_$id"
+    fun audience(audience: SessionAudience) = "setup_audience_${audience.apiValue}"
 }
 
+/** Acciones de la preparación, agrupadas para no alargar la firma de la pantalla. */
+data class SessionSetupActions(
+    val onRetry: () -> Unit = {},
+    val onChoose: (SetupChoice) -> Unit = {},
+    val onChooseAudience: (SessionAudience) -> Unit = {},
+    val onConfirmedChange: (Boolean) -> Unit = {},
+    val onCameraReadyChange: (Boolean) -> Unit = {},
+    val onLightingCheckedChange: (Boolean) -> Unit = {},
+    val onHandOver: () -> Unit = {},
+    val onCancel: () -> Unit = {},
+)
+
+/**
+ * Una sola pantalla: qué aplicar (un protocolo o ninguno), con quién es la sesión si no hay
+ * protocolo, la cámara y la única confirmación. La sesión se crea al entregar la tablet.
+ */
 @Composable
-fun SessionSetupScreen(
-    state: SessionSetupUiState,
-    onRetryProtocols: () -> Unit,
-    onSelectProtocol: (String) -> Unit,
-    onContinue: () -> Unit,
-    onCheckedChange: (ConfirmationItem, Boolean) -> Unit,
-    onCameraReadyChange: (Boolean) -> Unit,
-    onLightingCheckedChange: (Boolean) -> Unit,
-    onHandOver: () -> Unit,
-    onCancel: () -> Unit,
-) {
+fun SessionSetupScreen(state: SessionSetupUiState, actions: SessionSetupActions) {
     SecureWindow()
-    BackHandler(onBack = onCancel)
+    BackHandler(onBack = actions.onCancel)
 
     FormScreen {
         PageTitle(stringResource(R.string.setup_title))
-        PageSubtitle(stringResource(R.string.setup_subtitle, state.participantCode))
+        PageSubtitle(stringResource(R.string.setup_subtitle))
 
-        if (state.started == null) {
-            ProtocolStep(state, onRetryProtocols, onSelectProtocol, onContinue, onCancel)
-        } else {
-            ConfirmationStep(
-                state = state,
-                onCheckedChange = onCheckedChange,
-                onCameraReadyChange = onCameraReadyChange,
-                onLightingCheckedChange = onLightingCheckedChange,
-                onHandOver = onHandOver,
-                onCancel = onCancel,
+        PlanSection(state, actions)
+
+        if (state.choice == SetupChoice.NoProtocol && !state.isLoadingOptions) {
+            AudienceSection(state, actions.onChooseAudience)
+        }
+
+        SectionTitle(stringResource(R.string.setup_camera_title))
+        CameraCheck(
+            cameraReady = state.cameraReady,
+            lightingChecked = state.lightingChecked,
+            enabled = !state.isStarting,
+            onCameraReadyChange = actions.onCameraReadyChange,
+            onLightingCheckedChange = actions.onLightingCheckedChange,
+        )
+
+        state.confirmationText?.let { text ->
+            SectionTitle(stringResource(R.string.setup_confirmation_title))
+            CheckboxRow(
+                text = text,
+                checked = state.confirmed,
+                onCheckedChange = actions.onConfirmedChange,
+                enabled = !state.isStarting,
+                modifier = Modifier.testTag(SessionSetupTags.CONFIRM),
             )
         }
+
+        state.error?.let { ErrorCallout(it, onRetry = if (state.protocols.isEmpty() && state.audiences.isEmpty()) actions.onRetry else null) }
+
+        val missing = when {
+            state.plan == null -> R.string.setup_missing_plan
+            !state.cameraReady -> R.string.setup_missing_camera
+            !state.lightingChecked -> R.string.setup_missing_lighting
+            !state.confirmed -> R.string.setup_missing_confirmation
+            else -> R.string.setup_lock_notice
+        }
+        Text(stringResource(missing), style = EmotvType.BodySm, color = EmotvColors.Slate)
+        PrimaryButton(
+            text = stringResource(R.string.setup_hand_over),
+            onClick = actions.onHandOver,
+            enabled = state.canHandOver,
+            loading = state.isStarting,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(SessionSetupTags.HAND_OVER),
+        )
+        GhostButton(text = stringResource(R.string.setup_back), onClick = actions.onCancel)
     }
 }
 
 @Composable
-private fun ProtocolStep(
-    state: SessionSetupUiState,
-    onRetry: () -> Unit,
-    onSelect: (String) -> Unit,
-    onContinue: () -> Unit,
-    onCancel: () -> Unit,
-) {
+private fun PlanSection(state: SessionSetupUiState, actions: SessionSetupActions) {
     SectionTitle(stringResource(R.string.setup_protocol_title))
-    when {
-        state.isLoadingProtocols -> Row(
+    if (state.isLoadingOptions) {
+        Row(
             horizontalArrangement = Arrangement.spacedBy(EmotvSpacing.Sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             CircularProgressIndicator(modifier = Modifier.size(20.dp), color = EmotvColors.Primary, strokeWidth = 2.dp)
             Text(stringResource(R.string.setup_protocol_loading), style = EmotvType.BodyMd, color = EmotvColors.Slate)
         }
-        state.protocols.isEmpty() && state.error == null -> Callout(
-            title = stringResource(R.string.setup_protocol_empty),
-            body = stringResource(R.string.setup_protocol_empty_body),
-            tone = CalloutTone.Neutral,
-        )
-        else -> Column(
-            modifier = Modifier.selectableGroup(),
-            verticalArrangement = Arrangement.spacedBy(EmotvSpacing.Xs),
-        ) {
-            state.protocols.forEach { protocol ->
-                ProtocolRow(
-                    protocol = protocol,
-                    selected = protocol.id == state.selectedProtocolId,
-                    enabled = !state.isStarting,
-                    onSelect = { onSelect(protocol.id) },
-                )
-            }
-        }
+        return
     }
-
-    state.error?.let { ErrorCallout(it, onRetry = if (state.protocols.isEmpty()) onRetry else null) }
-
-    PrimaryButton(
-        text = stringResource(R.string.setup_continue),
-        onClick = onContinue,
-        enabled = state.selectedProtocol != null,
-        loading = state.isStarting,
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag(SessionSetupTags.CONTINUE),
-    )
-    GhostButton(text = stringResource(R.string.setup_back), onClick = onCancel)
+    if (state.protocols.isEmpty() && state.error == null) {
+        Text(stringResource(R.string.setup_protocol_empty_body), style = EmotvType.BodySm, color = EmotvColors.Slate)
+    }
+    Column(
+        modifier = Modifier.selectableGroup(),
+        verticalArrangement = Arrangement.spacedBy(EmotvSpacing.Xs),
+    ) {
+        state.protocols.forEach { protocol ->
+            OptionRow(
+                title = protocol.name,
+                details = protocolDetails(protocol),
+                selected = state.choice == SetupChoice.Protocol(protocol.id),
+                enabled = !state.isStarting,
+                onSelect = { actions.onChoose(SetupChoice.Protocol(protocol.id)) },
+                modifier = Modifier.testTag(SessionSetupTags.protocol(protocol.id)),
+            )
+        }
+        OptionRow(
+            title = stringResource(R.string.setup_no_protocol),
+            details = stringResource(R.string.setup_no_protocol_body),
+            selected = state.choice == SetupChoice.NoProtocol,
+            enabled = !state.isStarting,
+            onSelect = { actions.onChoose(SetupChoice.NoProtocol) },
+            modifier = Modifier.testTag(SessionSetupTags.NO_PROTOCOL),
+        )
+    }
 }
 
 @Composable
-private fun ProtocolRow(protocol: SessionProtocol, selected: Boolean, enabled: Boolean, onSelect: () -> Unit) {
-    val details = buildList {
-        add(stringResource(R.string.setup_protocol_version, protocol.version))
-        add(pluralStringResource(R.plurals.setup_protocol_steps, protocol.stepCount, protocol.stepCount))
-        if (protocol.hasPreQuestionnaire) add(stringResource(R.string.setup_protocol_pre))
-        if (protocol.hasPostQuestionnaire) add(stringResource(R.string.setup_protocol_post))
-    }.joinToString(" · ")
+private fun AudienceSection(state: SessionSetupUiState, onChoose: (SessionAudience) -> Unit) {
+    SectionTitle(stringResource(R.string.setup_audience_title))
+    Column(
+        modifier = Modifier.selectableGroup(),
+        verticalArrangement = Arrangement.spacedBy(EmotvSpacing.Xs),
+    ) {
+        state.audiences.forEach { option ->
+            OptionRow(
+                title = stringResource(audienceLabel(option.audience)),
+                details = null,
+                selected = state.audience == option.audience,
+                enabled = !state.isStarting,
+                onSelect = { onChoose(option.audience) },
+                modifier = Modifier.testTag(SessionSetupTags.audience(option.audience)),
+            )
+        }
+    }
+}
+
+@Composable
+private fun protocolDetails(protocol: SessionProtocol): String = buildList {
+    add(stringResource(audienceLabel(protocol.audience)))
+    add(pluralStringResource(R.plurals.setup_protocol_steps, protocol.stepCount, protocol.stepCount))
+    if (protocol.hasPreQuestionnaire) add(stringResource(R.string.setup_protocol_pre))
+    if (protocol.hasPostQuestionnaire) add(stringResource(R.string.setup_protocol_post))
+    add(stringResource(R.string.setup_protocol_version, protocol.version))
+}.joinToString(" · ")
+
+private fun audienceLabel(audience: SessionAudience): Int = when (audience) {
+    SessionAudience.Own -> R.string.audience_own
+    SessionAudience.Adult -> R.string.audience_adult
+    SessionAudience.Child -> R.string.audience_child
+    SessionAudience.Unknown -> R.string.audience_unknown
+}
+
+@Composable
+private fun OptionRow(
+    title: String,
+    details: String?,
+    selected: Boolean,
+    enabled: Boolean,
+    onSelect: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .heightIn(min = EmotvSpacing.TouchTarget)
             .clip(EmotvShapes.Lg)
@@ -193,79 +263,10 @@ private fun ProtocolRow(protocol: SessionProtocol, selected: Boolean, enabled: B
             ),
         )
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(EmotvSpacing.Xxs)) {
-            Text(protocol.name, style = EmotvType.CardTitle, color = EmotvColors.Ink)
-            Text(details, style = EmotvType.BodySm, color = EmotvColors.Steel)
-            if (protocol.forChildren) {
-                StatusChip(stringResource(R.string.setup_protocol_for_children), ChipTone.Neutral)
-            }
+            Text(title, style = EmotvType.CardTitle, color = EmotvColors.Ink)
+            if (details != null) Text(details, style = EmotvType.BodySm, color = EmotvColors.Steel)
         }
     }
-}
-
-@Composable
-private fun ConfirmationStep(
-    state: SessionSetupUiState,
-    onCheckedChange: (ConfirmationItem, Boolean) -> Unit,
-    onCameraReadyChange: (Boolean) -> Unit,
-    onLightingCheckedChange: (Boolean) -> Unit,
-    onHandOver: () -> Unit,
-    onCancel: () -> Unit,
-) {
-    val started = state.started ?: return
-    val busy = state.isConfirming || state.isCancelling
-    state.selectedProtocol?.let {
-        Text(stringResource(R.string.setup_selected_protocol, it.name), style = EmotvType.BodyMd, color = EmotvColors.Charcoal)
-    }
-
-    SectionTitle(stringResource(R.string.setup_confirmation_title))
-    started.confirmation.reminder?.let {
-        Callout(title = stringResource(R.string.setup_reminder_title), body = it, tone = CalloutTone.Neutral)
-    }
-    Column {
-        started.confirmation.required.forEach { item ->
-            CheckboxRow(
-                text = stringResource(item.label()),
-                checked = item in state.checked,
-                onCheckedChange = { onCheckedChange(item, it) },
-                enabled = !busy,
-            )
-        }
-    }
-
-    SectionTitle(stringResource(R.string.setup_camera_title))
-    CameraCheck(
-        cameraReady = state.cameraReady,
-        lightingChecked = state.lightingChecked,
-        enabled = !busy,
-        onCameraReadyChange = onCameraReadyChange,
-        onLightingCheckedChange = onLightingCheckedChange,
-    )
-
-    state.error?.let { ErrorCallout(it, onRetry = null) }
-
-    val missing = when {
-        state.missingConfirmations.isNotEmpty() -> R.string.setup_missing_confirmations
-        !state.cameraReady -> R.string.setup_missing_camera
-        !state.lightingChecked -> R.string.setup_missing_lighting
-        else -> R.string.setup_lock_notice
-    }
-    Text(stringResource(missing), style = EmotvType.BodySm, color = EmotvColors.Slate)
-    PrimaryButton(
-        text = stringResource(R.string.setup_hand_over),
-        onClick = onHandOver,
-        enabled = state.canHandOver,
-        loading = state.isConfirming,
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag(SessionSetupTags.HAND_OVER),
-    )
-    SecondaryButton(
-        text = stringResource(R.string.setup_cancel),
-        onClick = onCancel,
-        enabled = !state.isConfirming,
-        loading = state.isCancelling,
-        modifier = Modifier.fillMaxWidth(),
-    )
 }
 
 /** Permiso de cámara y vista previa para revisar la luz. Nada de la vista previa se guarda. */
@@ -386,11 +387,4 @@ fun ErrorCallout(error: SessionError, onRetry: (() -> Unit)?) {
     Callout(title = title, body = body, tone = CalloutTone.Error) {
         if (onRetry != null) SecondaryButton(text = stringResource(R.string.action_retry), onClick = onRetry)
     }
-}
-
-private fun ConfirmationItem.label() = when (this) {
-    ConfirmationItem.CommitmentReminder -> R.string.setup_confirm_commitment
-    ConfirmationItem.AuthorizationConfirmed -> R.string.setup_confirm_authorization
-    ConfirmationItem.GuardianPresent -> R.string.setup_confirm_guardian
-    ConfirmationItem.ChildAssent -> R.string.setup_confirm_assent
 }

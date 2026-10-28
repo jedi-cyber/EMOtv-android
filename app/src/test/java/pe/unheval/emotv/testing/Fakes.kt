@@ -23,13 +23,11 @@ import org.junit.runner.Description
 import pe.unheval.emotv.data.local.PinHasher
 import pe.unheval.emotv.data.local.ValueStore
 import pe.unheval.emotv.data.remote.AccessTokenHolder
+import pe.unheval.emotv.data.remote.AudienceDto
 import pe.unheval.emotv.data.remote.CalibrationDto
-import pe.unheval.emotv.data.remote.ConfirmRequestDto
-import pe.unheval.emotv.data.remote.ConfirmationDto
 import pe.unheval.emotv.data.remote.EmotvApi
 import pe.unheval.emotv.data.remote.FrameResultDto
 import pe.unheval.emotv.data.remote.LoginRequestDto
-import pe.unheval.emotv.data.remote.ParticipantDto
 import pe.unheval.emotv.data.remote.PhaseDto
 import pe.unheval.emotv.data.remote.ProtocolDto
 import pe.unheval.emotv.data.remote.QuestionnaireAnswersDto
@@ -37,7 +35,6 @@ import pe.unheval.emotv.data.remote.QuestionnaireDto
 import pe.unheval.emotv.data.remote.RefreshRequestDto
 import pe.unheval.emotv.data.remote.ServicesDto
 import pe.unheval.emotv.data.remote.SessionDto
-import pe.unheval.emotv.data.remote.SessionParticipantDto
 import pe.unheval.emotv.data.remote.SessionStepDto
 import pe.unheval.emotv.data.remote.StartSessionDto
 import pe.unheval.emotv.data.remote.StartSessionRequestDto
@@ -97,23 +94,21 @@ class FakeEmotvApi : EmotvApi {
         return summary.invoke(date, utcOffsetMinutes)
     }
 
-    // --- Sesión con participante ---
+    // --- Sesión ---
 
-    var protocols: (participantId: String) -> List<ProtocolDto> = { listOf(protocolDto()) }
     var startSession: (StartSessionRequestDto) -> StartSessionDto = { startSessionDto() }
-    var confirm: (sessionId: String, ConfirmRequestDto) -> SessionStepDto = { id, _ -> stepDto(id, "pre_questionnaire") }
     var next: (sessionId: String) -> SessionStepDto = { stepDto(it, "finished") }
     var submitQuestionnaire: (sessionId: String, moment: String, QuestionnaireAnswersDto) -> PhaseDto =
         { _, _, _ -> PhaseDto("calibration") }
     var advance: (sessionId: String) -> PhaseDto = { PhaseDto("calibration") }
     var startCalibration: (sessionId: String) -> PhaseDto = { PhaseDto("calibration") }
     var sendFrame: (sessionId: String, jpeg: ByteArray) -> FrameResultDto = { _, _ -> FrameResultDto("stimuli") }
+    var finish: (sessionId: String) -> PhaseDto = { PhaseDto("finished") }
     var stop: (sessionId: String, StopRequestDto) -> PhaseDto = { _, _ -> PhaseDto("stopped") }
     var stimulusImage: (url: String) -> ByteArray = { byteArrayOf(1, 2, 3) }
 
-    val protocolRequests = mutableListOf<String>()
     val startRequests = mutableListOf<StartSessionRequestDto>()
-    val confirmRequests = mutableListOf<Pair<String, ConfirmRequestDto>>()
+    val finishRequests = mutableListOf<String>()
     val questionnaireRequests = mutableListOf<Pair<String, QuestionnaireAnswersDto>>()
     val stopRequests = mutableListOf<Pair<String, StopRequestDto>>()
     val imageRequests = mutableListOf<String>()
@@ -125,19 +120,9 @@ class FakeEmotvApi : EmotvApi {
     var advanceCalls = 0
     var calibrationCalls = 0
 
-    override suspend fun protocols(participantId: String): List<ProtocolDto> {
-        protocolRequests += participantId
-        return protocols.invoke(participantId)
-    }
-
     override suspend fun startSession(body: StartSessionRequestDto): StartSessionDto {
         startRequests += body
         return startSession.invoke(body)
-    }
-
-    override suspend fun confirm(sessionId: String, body: ConfirmRequestDto): SessionStepDto {
-        confirmRequests += sessionId to body
-        return confirm.invoke(sessionId, body)
     }
 
     override suspend fun next(sessionId: String): SessionStepDto {
@@ -172,6 +157,11 @@ class FakeEmotvApi : EmotvApi {
         return result
     }
 
+    override suspend fun finish(sessionId: String): PhaseDto {
+        finishRequests += sessionId
+        return finish.invoke(sessionId)
+    }
+
     override suspend fun stop(sessionId: String, body: StopRequestDto): PhaseDto {
         stopRequests += sessionId to body
         return stop.invoke(sessionId, body)
@@ -198,29 +188,40 @@ class FakeFrameSource : FrameSource {
     }
 }
 
+const val ADULT_CONFIRMATION = "Es una sesión mía o cuento con la autorización firmada de la persona adulta"
+const val CHILD_CONFIRMATION = "Su tutor autorizó por escrito, está presente y el niño aceptó participar"
+
 fun protocolDto(id: String = "protocolo-1", name: String = "Secuencia móvil", forChildren: Boolean = false) =
     ProtocolDto(
         id = id,
         name = name,
         version = 1,
         forChildren = forChildren,
+        audience = if (forChildren) "infantil" else "adulto",
         stepCount = 2,
         hasPreQuestionnaire = true,
         hasPostQuestionnaire = true,
+        confirmation = if (forChildren) CHILD_CONFIRMATION else ADULT_CONFIRMATION,
     )
 
-fun startSessionDto(sessionId: String = "sesion-1", kind: String = "adult") = StartSessionDto(
+fun audienceDtos() = listOf(
+    AudienceDto("propia", ADULT_CONFIRMATION),
+    AudienceDto("adulto", ADULT_CONFIRMATION),
+    AudienceDto("infantil", CHILD_CONFIRMATION),
+)
+
+fun startSessionDto(
+    sessionId: String = "sesion-1",
+    code: String = "S-4F7K2Q",
+    audience: String = "adulto",
+    hasProtocol: Boolean = true,
+) = StartSessionDto(
     sessionId = sessionId,
-    phase = "confirmation",
-    participant = SessionParticipantDto(id = "p-adulto", code = "P-RGNYTB", kind = kind),
-    confirmation = ConfirmationDto(
-        reminder = "Recuerda tu compromiso de confidencialidad.",
-        required = if (kind == "child") {
-            listOf("commitment_reminder", "guardian_present", "child_assent")
-        } else {
-            listOf("commitment_reminder", "authorization_confirmed")
-        },
-    ),
+    code = code,
+    phase = if (hasProtocol) "pre_questionnaire" else "calibration",
+    audience = audience,
+    hasProtocol = hasProtocol,
+    reminder = "Recuerda tu compromiso de confidencialidad.",
 )
 
 fun stepDto(
@@ -233,8 +234,10 @@ fun stepDto(
     calibration: CalibrationDto? = null,
     stimulus: StimulusDto? = null,
     stopReason: String? = null,
+    stepCount: Int = 2,
 ) = SessionStepDto(
     sessionId = sessionId,
+    code = "S-4F7K2Q",
     phase = phase,
     stopReason = stopReason,
     sendFrames = sendFrames,
@@ -243,7 +246,7 @@ fun stepDto(
     questionnaire = questionnaire,
     calibration = calibration,
     stimulus = stimulus,
-    stepCount = 2,
+    stepCount = stepCount,
 )
 
 /** Crea el ViewModel en un `ViewModelStore` para poder cancelar su `viewModelScope` al final. */
@@ -263,12 +266,12 @@ class InMemoryValueStore(var value: String? = null) : ValueStore {
 fun statusDto(
     minAppVersion: String = "1.0.0",
     login: Boolean = true,
-    participantSessions: Boolean = true,
+    sessions: Boolean = true,
 ) = StatusDto(
     status = "ok",
     apiVersion = "1.0.0rc1",
     minAppVersion = minAppVersion,
-    services = ServicesDto(login = login, participantSessions = participantSessions),
+    services = ServicesDto(login = login, sessions = sessions),
 )
 
 fun tokenResponse(
@@ -288,47 +291,46 @@ val testUser = UserDto(id = "user-1", email = "usuario1@example.com", role = "st
 
 fun sessionDto(
     id: String = "sesion-1",
+    code: String? = "S-4F7K2Q",
     startedAt: String = "2026-10-23T14:04:10.922662+00:00",
     state: String = "in_progress",
+    audience: String = "adulto",
     guidedPhase: String? = "stimuli",
-    participantId: String = "p-adulto",
-    participantCode: String = "P-RGNYTB",
+    protocolName: String? = "Secuencia móvil",
 ) = SessionDto(
     id = id,
+    code = code,
     startedAt = startedAt,
     state = state,
+    audience = audience,
     guidedPhase = guidedPhase,
-    participantId = participantId,
-    participantCode = participantCode,
-    protocolName = "Secuencia móvil",
-)
-
-/** Adulto con todas sus autorizaciones y una sesión en curso hoy. */
-fun readyAdultDto() = ParticipantDto(
-    id = "p-adulto",
-    code = "P-RGNYTB",
-    kind = "adult",
-    ageYears = 30,
-    ready = true,
-    lastSession = sessionDto(),
-)
-
-/** Niño sin asentimiento: el servidor no permite iniciar una sesión. */
-fun childWithoutAssentDto() = ParticipantDto(
-    id = "p-nino",
-    code = "P-7KQ2MD",
-    kind = "child",
-    ageYears = 9,
-    ready = false,
-    missing = listOf("child_assent"),
-    warnings = listOf("Falta el asentimiento del niño o la niña"),
+    protocolName = protocolName,
 )
 
 fun summaryDto(
     date: String = "2026-10-23",
     todaySessions: List<SessionDto> = listOf(sessionDto()),
-    participants: List<ParticipantDto> = listOf(readyAdultDto(), childWithoutAssentDto()),
-) = SummaryDto(user = testUser, date = date, todaySessions = todaySessions, participants = participants)
+    recentSessions: List<SessionDto> = listOf(
+        sessionDto(),
+        sessionDto(
+            id = "sesion-0",
+            code = "S-9QW3ZD",
+            startedAt = "2026-10-22T16:30:00+00:00",
+            state = "completed",
+            audience = "propia",
+            guidedPhase = "finished",
+            protocolName = null,
+        ),
+    ),
+    protocols: List<ProtocolDto> = listOf(protocolDto()),
+) = SummaryDto(
+    user = testUser,
+    date = date,
+    todaySessions = todaySessions,
+    recentSessions = recentSessions,
+    protocols = protocols,
+    audiences = audienceDtos(),
+)
 
 /** Error con la forma de docs/mobile-api.md: `{"detail": {"code", "message"}}`. */
 fun mobileError(

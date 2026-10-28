@@ -1,51 +1,47 @@
 package pe.unheval.emotv.domain.model
 
 /**
- * Modelos de la sesión guiada con participante (docs/mobile-api.md). El aplicativo no
- * lleva lógica propia: muestra lo que indica `GET /mobile/sessions/{id}/next`.
+ * Modelos de la sesión (docs/mobile-api.md). El aplicativo no lleva lógica propia: muestra
+ * lo que indica `GET /mobile/sessions/{id}/next`.
  */
 
-/** Protocolo que la cuenta puede aplicar a un participante (`GET /mobile/protocols`). */
+/** Protocolo que la cuenta puede aplicar. Su público decide con quién es la sesión. */
 data class SessionProtocol(
     val id: String,
     val name: String,
     val version: Int,
     val forChildren: Boolean,
+    val audience: SessionAudience,
     val stepCount: Int,
     val hasPreQuestionnaire: Boolean,
     val hasPostQuestionnaire: Boolean,
+    /** Texto de la única casilla de confirmación, tal como lo envía el servidor. */
+    val confirmation: String,
 )
 
-/** Sesión recién creada con `POST /mobile/sessions`, a la espera de la confirmación previa. */
+/** Opción para empezar sin protocolo, con el texto de su confirmación. */
+data class AudienceOption(val audience: SessionAudience, val confirmation: String)
+
+/** Qué se aplica: un protocolo, o ninguno eligiendo con quién es la sesión. */
+sealed interface SessionPlan {
+    data class WithProtocol(val protocolId: String) : SessionPlan
+    data class WithoutProtocol(val audience: SessionAudience) : SessionPlan
+}
+
+/** Sesión recién creada con `POST /mobile/sessions`, ya con la confirmación enviada. */
 data class StartedSession(
     val sessionId: String,
-    val participantCode: String,
-    val participantKind: ParticipantKind,
-    val confirmation: ConfirmationRequest,
-)
-
-/** Recordatorio y casillas que quien conduce debe marcar antes de empezar. */
-data class ConfirmationRequest(
+    /** Código aleatorio que quien conduce anota en el formato firmado. */
+    val code: String,
+    val audience: SessionAudience,
+    val hasProtocol: Boolean,
     val reminder: String?,
-    val required: List<ConfirmationItem>,
 )
-
-/** Casillas de `POST .../confirm`. Empiezan sin marcar. */
-enum class ConfirmationItem(val apiValue: String) {
-    CommitmentReminder("commitment_reminder"),
-    AuthorizationConfirmed("authorization_confirmed"),
-    GuardianPresent("guardian_present"),
-    ChildAssent("child_assent"),
-    ;
-
-    companion object {
-        fun fromApi(value: String) = entries.firstOrNull { it.apiValue == value }
-    }
-}
 
 /** Respuesta de `GET .../next`: qué mostrar ahora. */
 data class SessionStep(
     val sessionId: String,
+    val code: String?,
     /** `null` si el servidor envía una fase que esta versión no conoce: se sigue consultando. */
     val phase: GuidedPhase?,
     val stopReason: StopReason?,
@@ -55,7 +51,6 @@ data class SessionStep(
     val questionnaire: Questionnaire?,
     val calibration: Calibration?,
     val stimulus: Stimulus?,
-    val confirmation: ConfirmationRequest?,
     val stepCount: Int?,
 ) {
     val isTerminal: Boolean get() = phase == GuidedPhase.Finished || phase == GuidedPhase.Stopped
@@ -154,7 +149,7 @@ data class Stimulus(
     /** Ruta relativa al servidor, firmada y válida 120 segundos. */
     val imageUrl: String?,
     val abstractNotice: String?,
-    /** Lo que el participante dice ver lo registra quien conduce desde la web. */
+    /** Lo que la persona dice ver lo registra quien conduce desde la web. */
     val recordsVerbalResponse: Boolean,
 )
 
@@ -188,6 +183,7 @@ enum class CaptureIssue(val apiValue: String) {
 
 /** Quién pidió interrumpir la sesión (`POST .../stop`). */
 enum class StopReason(val apiValue: String) {
+    /** La persona evaluada pidió parar (`participant` en la API). */
     Participant("participant"),
     Guardian("guardian"),
     Conductor("conductor"),

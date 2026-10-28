@@ -3,7 +3,7 @@ package pe.unheval.emotv.ui.session
 import pe.unheval.emotv.domain.model.AppError
 import pe.unheval.emotv.domain.model.isSessionEnded
 
-/** Errores de la sesión con participante. Los textos los pone la pantalla (strings.xml). */
+/** Errores de la sesión. Los textos los pone la pantalla (strings.xml). */
 sealed interface SessionError {
     /** Mensaje del servidor en español; puede faltar. */
     data class Server(val code: String?, val message: String?) : SessionError

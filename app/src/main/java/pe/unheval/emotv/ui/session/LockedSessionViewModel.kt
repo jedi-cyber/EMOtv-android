@@ -23,8 +23,8 @@ import pe.unheval.emotv.domain.model.CaptureIssue
 import pe.unheval.emotv.domain.model.ErrorCodes
 import pe.unheval.emotv.domain.model.GuidedPhase
 import pe.unheval.emotv.domain.model.Outcome
-import pe.unheval.emotv.domain.model.ParticipantKind
 import pe.unheval.emotv.domain.model.Questionnaire
+import pe.unheval.emotv.domain.model.SessionAudience
 import pe.unheval.emotv.domain.model.SessionStep
 import pe.unheval.emotv.domain.model.StopReason
 import pe.unheval.emotv.domain.model.isSessionEnded
@@ -34,9 +34,9 @@ import pe.unheval.emotv.domain.repository.SessionRepository
 import pe.unheval.emotv.domain.usecase.VerifyPinUseCase
 import pe.unheval.emotv.ui.navigation.LockedSessionRoute
 
-/** Por qué la pantalla del participante está cubierta por el panel de quien conduce. */
+/** Por qué la pantalla de la persona evaluada está cubierta por el panel de quien conduce. */
 sealed interface SessionPause {
-    /** El participante tocó «Quiero parar». */
+    /** La persona tocó «Quiero parar». */
     data object ParticipantRequest : SessionPause
 
     /** Quien conduce quiere salir (gesto atrás o fin de la sesión). */
@@ -63,7 +63,9 @@ class StimulusImage(val key: String, val bytes: ByteArray) {
 }
 
 data class LockedSessionUiState(
-    val participantKind: ParticipantKind,
+    /** Código de la sesión, para anotarlo en el formato firmado. */
+    val code: String,
+    val audience: SessionAudience,
     val step: SessionStep? = null,
     val stimulusImage: StimulusImage? = null,
     /** Respuestas del cuestionario en curso; se descartan al enviarlas. */
@@ -84,13 +86,13 @@ data class LockedSessionUiState(
 ) {
     val isTerminal: Boolean get() = step?.isTerminal == true
 
-    /** El participante tiene la pantalla y la sesión avanza. */
+    /** La persona evaluada tiene la pantalla y la sesión avanza. */
     val isRunning: Boolean get() = pause == null && !exited && !isTerminal
 
     /** Se envían cuadros solo mientras el servidor lo pide y la sesión avanza. */
     val isCapturing: Boolean
         get() = isRunning && step?.sendFrames == true &&
-            (step.phase == GuidedPhase.Calibration || step.phase == GuidedPhase.Stimuli)
+            (step.phase == GuidedPhase.Calibration || step.phase == GuidedPhase.Stimuli || step.phase == GuidedPhase.Live)
 
     /** Tras el PIN, se puede volver a la sesión si sigue activa y hay conexión. */
     val canResume: Boolean
@@ -114,12 +116,13 @@ data class LockedSessionUiState(
  */
 class LockedSessionViewModel(
     private val sessionId: String,
-    participantKind: ParticipantKind,
+    code: String,
+    audience: SessionAudience,
     private val sessions: SessionRepository,
     private val verifyPin: VerifyPinUseCase,
 ) : ViewModel() {
 
-    private val state = MutableStateFlow(LockedSessionUiState(participantKind = participantKind))
+    private val state = MutableStateFlow(LockedSessionUiState(code = code, audience = audience))
     val uiState: StateFlow<LockedSessionUiState> = state.asStateFlow()
 
     // Despierta el ciclo para pedir `next` sin esperar al siguiente intervalo.
@@ -146,7 +149,7 @@ class LockedSessionViewModel(
         frameSource = null
     }
 
-    // --- Participante -------------------------------------------------------------------
+    // --- Persona evaluada ----------------------------------------------------------------
 
     fun answer(questionId: String, answer: Answer?) {
         if (!state.value.isRunning) return
@@ -188,7 +191,7 @@ class LockedSessionViewModel(
         }
     }
 
-    /** `POST .../calibration`, cuando el participante está listo. */
+    /** `POST .../calibration`, cuando la persona está lista. */
     fun startCalibration() {
         if (!state.value.isRunning || state.value.isSubmitting) return
         state.update { it.copy(isSubmitting = true) }
@@ -270,7 +273,7 @@ class LockedSessionViewModel(
         state.update { it.copy(stopReason = reason) }
     }
 
-    /** Devuelve la tablet al participante. */
+    /** Devuelve la tablet a la persona evaluada. */
     fun resume() {
         if (!state.value.canResume) return
         state.update { it.copy(pause = null, unlocked = false, pin = "", pinError = null) }
@@ -280,20 +283,46 @@ class LockedSessionViewModel(
     /**
      * Sale del modo sesión con el PIN ya ingresado. Si la sesión sigue activa, la interrumpe
      * con el motivo elegido; si eso falla (sin conexión), se puede cerrar desde la web.
+     *
+     * Una sesión sin protocolo (`live`) que termina quien conduce se cierra con `finish`, que
+     * la conserva, y queda en pantalla con su código antes de volver al inicio.
      */
     fun endSession() {
         val current = state.value
         if (!current.unlocked || current.isEnding || current.exited) return
         state.update { it.copy(isEnding = true) }
         viewModelScope.launch {
-            if (!current.isTerminal && current.pause !is SessionPause.Failed) {
+            val active = !current.isTerminal && current.pause !is SessionPause.Failed
+            if (active && current.step?.phase == GuidedPhase.Live && current.stopReason == StopReason.Conductor) {
+                if (finishLive()) return@launch
+            } else if (active) {
                 sessions.stop(sessionId, current.stopReason)
             }
             frameSource = null
             // Se descartan las respuestas, la imagen del estímulo y todo lo demás en memoria.
-            state.value = LockedSessionUiState(participantKind = current.participantKind, exited = true)
+            state.value = LockedSessionUiState(code = current.code, audience = current.audience, exited = true)
             wake.trySend(Unit)
         }
+    }
+
+    /**
+     * `POST .../finish`. Devuelve `true` si la sesión quedó terminada y en pantalla; si falla,
+     * se sale igual y la sesión se puede cerrar desde la web.
+     */
+    private suspend fun finishLive(): Boolean {
+        val result = sessions.finish(sessionId)
+        val finished = result is Outcome.Success || result.let { it is Outcome.Failure && it.error.serverCode == ErrorCodes.CONFLICT }
+        if (!finished) return false
+        frameSource = null
+        state.update {
+            it.copy(
+                step = it.step?.copy(phase = GuidedPhase.Finished, sendFrames = false, captureIssues = emptyList()),
+                pause = SessionPause.ExitRequest,
+                captureIssues = emptyList(),
+                isEnding = false,
+            )
+        }
+        return true
     }
 
     // --- Ciclo de la sesión ---------------------------------------------------------------
@@ -476,7 +505,8 @@ class LockedSessionViewModel(
                 val route = createSavedStateHandle().toRoute<LockedSessionRoute>()
                 LockedSessionViewModel(
                     sessionId = route.sessionId,
-                    participantKind = ParticipantKind.fromApi(route.participantKind),
+                    code = route.code,
+                    audience = SessionAudience.fromApi(route.audience),
                     sessions = container.sessionRepository,
                     verifyPin = container.verifyPin,
                 )

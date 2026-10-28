@@ -5,62 +5,40 @@ import java.time.LocalDate
 
 /**
  * Resumen de `GET /mobile/summary`: solo datos de la cuenta que inició sesión.
- * Ningún modelo tiene el nombre de un participante; se identifican por su código.
+ * Las personas evaluadas no se registran: cada sesión se identifica por su código.
  */
 data class DashboardSummary(
     val user: AuthUser,
     val date: LocalDate,
     val todaySessions: List<SessionSummary>,
-    val participants: List<Participant>,
-)
-
-data class Participant(
-    val id: String,
-    val code: String,
-    val kind: ParticipantKind,
-    /** `null` si se registró sin edad (`missing` incluye [MissingRequirement.Age]). */
-    val ageYears: Int?,
-    /** Con `false` el servidor no permite iniciar una sesión. */
-    val ready: Boolean,
-    val missing: List<MissingRequirement>,
-    /** Textos del servidor que explican lo que falta, listos para mostrar. */
-    val warnings: List<String>,
-    val lastSession: SessionSummary?,
+    val recentSessions: List<SessionSummary>,
+    /** Protocolos que la cuenta puede aplicar; puede estar vacía. */
+    val protocols: List<SessionProtocol>,
+    /** Opciones de «¿Con quién es la sesión?» para empezar sin protocolo. */
+    val audiences: List<AudienceOption>,
 )
 
 data class SessionSummary(
     val id: String,
+    /** `null` solo en sesiones anteriores a la revisión 3 del contrato. */
+    val code: String?,
     val startedAt: Instant,
     val state: SessionState,
+    val audience: SessionAudience,
     val guidedPhase: GuidedPhase?,
-    val participantId: String,
-    val participantCode: String,
     val protocolName: String?,
 )
 
-enum class ParticipantKind(val apiValue: String) {
-    Adult("adult"),
-    Child("child"),
+/** Con quién es la sesión (`audience` y `session_type`). */
+enum class SessionAudience(val apiValue: String) {
+    Own("propia"),
+    Adult("adulto"),
+    Child("infantil"),
     Unknown(""),
     ;
 
     companion object {
-        fun fromApi(value: String) = entries.firstOrNull { it.apiValue == value } ?: Unknown
-    }
-}
-
-/** Valores de `missing`. */
-enum class MissingRequirement(val apiValue: String) {
-    Participation("participation"),
-    Camera("camera"),
-    ChildAssent("child_assent"),
-    Revoked("revoked"),
-    Age("age"),
-    Other(""),
-    ;
-
-    companion object {
-        fun fromApi(value: String) = entries.firstOrNull { it.apiValue == value } ?: Other
+        fun fromApi(value: String?) = entries.firstOrNull { it.apiValue == value } ?: Unknown
     }
 }
 
@@ -79,14 +57,14 @@ enum class SessionState(val apiValue: String) {
     }
 }
 
-/** Fases de la sesión guiada (docs/mobile-api.md). */
+/** Fases de la sesión (docs/mobile-api.md). `Live` solo existe en sesiones sin protocolo. */
 enum class GuidedPhase(val apiValue: String) {
-    Confirmation("confirmation"),
     PreQuestionnaire("pre_questionnaire"),
     BeforeAnalyzer("before_analyzer"),
     Calibration("calibration"),
     Stimuli("stimuli"),
     PostQuestionnaire("post_questionnaire"),
+    Live("live"),
     Finished("finished"),
     Stopped("stopped"),
     ;

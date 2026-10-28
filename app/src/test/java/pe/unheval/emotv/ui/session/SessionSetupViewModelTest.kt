@@ -10,15 +10,21 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import pe.unheval.emotv.data.remote.ConfirmRequestDto
-import pe.unheval.emotv.domain.model.ConfirmationItem
-import pe.unheval.emotv.domain.model.ParticipantKind
+import pe.unheval.emotv.data.remote.StartSessionRequestDto
+import pe.unheval.emotv.domain.model.SessionAudience
+import pe.unheval.emotv.domain.usecase.LoadDashboardUseCase
+import pe.unheval.emotv.testing.ADULT_CONFIRMATION
+import pe.unheval.emotv.testing.CHILD_CONFIRMATION
 import pe.unheval.emotv.testing.MainDispatcherRule
 import pe.unheval.emotv.testing.TestGraph
 import pe.unheval.emotv.testing.create
 import pe.unheval.emotv.testing.mobileError
 import pe.unheval.emotv.testing.protocolDto
 import pe.unheval.emotv.testing.startSessionDto
+import pe.unheval.emotv.testing.summaryDto
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 
 class SessionSetupViewModelTest {
 
@@ -27,9 +33,10 @@ class SessionSetupViewModelTest {
 
     private val graph = TestGraph(mainRule.dispatcher)
     private val store = ViewModelStore()
+    private val clock = Clock.fixed(Instant.parse("2026-10-23T15:00:00Z"), ZoneOffset.ofHours(-5))
 
     private fun viewModel() = store.create {
-        SessionSetupViewModel("p-adulto", "P-RGNYTB", graph.sessionRepository)
+        SessionSetupViewModel(LoadDashboardUseCase(graph.summaryRepository, clock), graph.sessionRepository)
     }
 
     @Before
@@ -40,77 +47,109 @@ class SessionSetupViewModelTest {
     @After
     fun clear() = store.clear()
 
-    private fun SessionSetupViewModel.startAndCheckCamera() {
-        startSession()
+    private fun SessionSetupViewModel.checkCamera() {
         onCameraReady(true)
         setLightingChecked(true)
     }
 
     @Test
-    fun `carga los protocolos del participante y elige el único disponible`() {
+    fun `carga los protocolos y las opciones sin protocolo, sin elegir por quien conduce`() {
         val vm = viewModel()
 
-        assertEquals(listOf("p-adulto"), graph.api.protocolRequests)
         val state = vm.uiState.value
-        assertFalse(state.isLoadingProtocols)
-        assertEquals("protocolo-1", state.selectedProtocolId)
+        assertFalse(state.isLoadingOptions)
+        assertEquals(listOf("protocolo-1"), state.protocols.map { it.id })
+        assertEquals(
+            listOf(SessionAudience.Own, SessionAudience.Adult, SessionAudience.Child),
+            state.audiences.map { it.audience },
+        )
+        assertNull(state.choice)
+        assertNull(state.confirmationText)
     }
 
     @Test
-    fun `con varios protocolos espera a que quien conduce elija`() {
-        graph.api.protocols = { listOf(protocolDto("a", "Uno"), protocolDto("b", "Dos")) }
+    fun `sin protocolos utilizables queda elegida la sesión sin protocolo`() {
+        graph.api.summary = { _, _ -> summaryDto(protocols = emptyList()) }
         val vm = viewModel()
 
-        assertNull(vm.uiState.value.selectedProtocolId)
-        vm.startSession()
+        assertEquals(SetupChoice.NoProtocol, vm.uiState.value.choice)
+        // Falta decir con quién es la sesión.
+        assertNull(vm.uiState.value.plan)
+    }
+
+    @Test
+    fun `con protocolo crea la sesión solo con la casilla marcada y la cámara revisada`() {
+        val vm = viewModel()
+        vm.choose(SetupChoice.Protocol("protocolo-1"))
+        assertEquals(ADULT_CONFIRMATION, vm.uiState.value.confirmationText)
+        vm.checkCamera()
+
+        vm.handOver()
         assertTrue(graph.api.startRequests.isEmpty())
+        assertFalse(vm.uiState.value.canHandOver)
 
-        vm.selectProtocol("b")
-        vm.startSession()
-        assertEquals("b", graph.api.startRequests.single().protocolId)
+        vm.setConfirmed(true)
+        vm.handOver()
+
+        assertEquals(
+            StartSessionRequestDto(protocolId = "protocolo-1", authorizationConfirmed = true),
+            graph.api.startRequests.single(),
+        )
+        assertEquals(
+            LockedSessionArgs("sesion-1", "S-4F7K2Q", SessionAudience.Adult),
+            vm.uiState.value.locked,
+        )
     }
 
     @Test
-    fun `no inicia sin la confirmación previa`() {
+    fun `sin protocolo pide con quién es la sesión y envía ese público`() {
+        graph.api.startSession = { startSessionDto(audience = "infantil", hasProtocol = false) }
         val vm = viewModel()
-        vm.startAndCheckCamera()
+        vm.choose(SetupChoice.NoProtocol)
+        vm.checkCamera()
+        assertNull(vm.uiState.value.confirmationText)
+
+        vm.chooseAudience(SessionAudience.Child)
+        assertEquals(CHILD_CONFIRMATION, vm.uiState.value.confirmationText)
+        vm.setConfirmed(true)
+        vm.handOver()
+
         assertEquals(
-            listOf(ConfirmationItem.CommitmentReminder, ConfirmationItem.AuthorizationConfirmed),
-            vm.uiState.value.started?.confirmation?.required,
+            StartSessionRequestDto(sessionType = "infantil", authorizationConfirmed = true),
+            graph.api.startRequests.single(),
         )
+        assertEquals(SessionAudience.Child, vm.uiState.value.locked?.audience)
+    }
 
-        vm.handOver()
-        assertTrue(graph.api.confirmRequests.isEmpty())
+    @Test
+    fun `cambiar la elección desmarca la confirmación`() {
+        val vm = viewModel()
+        vm.choose(SetupChoice.NoProtocol)
+        vm.chooseAudience(SessionAudience.Adult)
+        vm.setConfirmed(true)
 
-        vm.setChecked(ConfirmationItem.CommitmentReminder, true)
-        vm.handOver()
-        assertTrue(graph.api.confirmRequests.isEmpty())
-        assertFalse(vm.uiState.value.canHandOver)
-        assertNull(vm.uiState.value.locked)
+        vm.chooseAudience(SessionAudience.Child)
+        assertFalse(vm.uiState.value.confirmed)
 
-        vm.setChecked(ConfirmationItem.AuthorizationConfirmed, true)
-        vm.handOver()
+        vm.setConfirmed(true)
+        vm.choose(SetupChoice.Protocol("protocolo-1"))
+        assertFalse(vm.uiState.value.confirmed)
+        assertNull(vm.uiState.value.audience)
+    }
 
-        val (sessionId, body) = graph.api.confirmRequests.single()
-        assertEquals("sesion-1", sessionId)
-        assertEquals(
-            ConfirmRequestDto(
-                commitmentReminder = true,
-                authorizationConfirmed = true,
-                guardianPresent = false,
-                childAssent = false,
-            ),
-            body,
-        )
-        assertEquals(LockedSessionArgs("sesion-1", ParticipantKind.Adult), vm.uiState.value.locked)
+    @Test
+    fun `no se puede marcar la confirmación sin elegir qué aplicar`() {
+        val vm = viewModel()
+        vm.setConfirmed(true)
+
+        assertFalse(vm.uiState.value.confirmed)
     }
 
     @Test
     fun `no entrega la tablet sin revisar la cámara y la iluminación`() {
         val vm = viewModel()
-        vm.startSession()
-        vm.setChecked(ConfirmationItem.CommitmentReminder, true)
-        vm.setChecked(ConfirmationItem.AuthorizationConfirmed, true)
+        vm.choose(SetupChoice.Protocol("protocolo-1"))
+        vm.setConfirmed(true)
 
         // Sin vista previa no se puede marcar la iluminación.
         vm.setLightingChecked(true)
@@ -119,76 +158,60 @@ class SessionSetupViewModelTest {
 
         vm.onCameraReady(true)
         vm.handOver()
-        assertTrue(graph.api.confirmRequests.isEmpty())
+        assertTrue(graph.api.startRequests.isEmpty())
 
         vm.setLightingChecked(true)
         // Si la cámara se cierra, hay que volver a revisar.
         vm.onCameraReady(false)
         assertFalse(vm.uiState.value.lightingChecked)
         vm.handOver()
-        assertTrue(graph.api.confirmRequests.isEmpty())
+        assertTrue(graph.api.startRequests.isEmpty())
     }
 
     @Test
-    fun `con un niño confirma la presencia del tutor y el asentimiento`() {
-        graph.api.startSession = { startSessionDto(kind = "child") }
+    fun `con varios protocolos espera a que quien conduce elija`() {
+        graph.api.summary = { _, _ ->
+            summaryDto(protocols = listOf(protocolDto("a", "Uno"), protocolDto("b", "Dos", forChildren = true)))
+        }
         val vm = viewModel()
-        vm.startAndCheckCamera()
-        vm.setChecked(ConfirmationItem.CommitmentReminder, true)
-        vm.setChecked(ConfirmationItem.GuardianPresent, true)
-        vm.handOver()
-        assertTrue(graph.api.confirmRequests.isEmpty())
+        assertNull(vm.uiState.value.choice)
 
-        vm.setChecked(ConfirmationItem.ChildAssent, true)
-        vm.handOver()
+        vm.choose(SetupChoice.Protocol("no-existe"))
+        assertNull(vm.uiState.value.choice)
 
-        val body = graph.api.confirmRequests.single().second
-        assertTrue(body.commitmentReminder && body.guardianPresent && body.childAssent)
-        assertFalse(body.authorizationConfirmed)
-        assertEquals(ParticipantKind.Child, vm.uiState.value.locked?.participantKind)
+        vm.choose(SetupChoice.Protocol("b"))
+        assertEquals(CHILD_CONFIRMATION, vm.uiState.value.confirmationText)
+        assertEquals(SessionAudience.Child, vm.uiState.value.selectedProtocol?.audience)
     }
 
     @Test
-    fun `muestra el mensaje del servidor si falta una autorización`() {
-        graph.api.startSession = { throw mobileError(409, "conflict", "Falta la autorización de cámara") }
+    fun `muestra el mensaje del servidor si falta el aviso sobre datos de menores`() {
+        graph.api.startSession = {
+            throw mobileError(428, "child_notice_required", "Acepta el aviso sobre datos de menores en la web")
+        }
         val vm = viewModel()
-        vm.startSession()
+        vm.choose(SetupChoice.NoProtocol)
+        vm.chooseAudience(SessionAudience.Child)
+        vm.checkCamera()
+        vm.setConfirmed(true)
+        vm.handOver()
 
         val state = vm.uiState.value
-        assertNull(state.started)
-        assertEquals(SessionError.Server("conflict", "Falta la autorización de cámara"), state.error)
+        assertNull(state.locked)
+        assertFalse(state.isStarting)
+        assertEquals(
+            SessionError.Server("child_notice_required", "Acepta el aviso sobre datos de menores en la web"),
+            state.error,
+        )
     }
 
     @Test
-    fun `si la confirmación falla no pasa al modo sesión`() {
-        graph.api.confirm = { _, _ -> throw mobileError(422, "invalid", "Falta una confirmación") }
+    fun `cancelar no llama al servidor porque la sesión aún no existe`() {
         val vm = viewModel()
-        vm.startAndCheckCamera()
-        vm.setChecked(ConfirmationItem.CommitmentReminder, true)
-        vm.setChecked(ConfirmationItem.AuthorizationConfirmed, true)
-        vm.handOver()
-
-        assertNull(vm.uiState.value.locked)
-        assertEquals(SessionError.Server("invalid", "Falta una confirmación"), vm.uiState.value.error)
-    }
-
-    @Test
-    fun `cancelar tras crear la sesión la interrumpe para que no quede en curso`() {
-        val vm = viewModel()
-        vm.startSession()
+        vm.choose(SetupChoice.Protocol("protocolo-1"))
         vm.cancel()
 
-        val (sessionId, body) = graph.api.stopRequests.single()
-        assertEquals("sesion-1", sessionId)
-        assertEquals("conductor", body.reason)
-        assertTrue(vm.uiState.value.closed)
-    }
-
-    @Test
-    fun `cancelar antes de crear la sesión no llama al servidor`() {
-        val vm = viewModel()
-        vm.cancel()
-
+        assertTrue(graph.api.startRequests.isEmpty())
         assertTrue(graph.api.stopRequests.isEmpty())
         assertTrue(vm.uiState.value.closed)
     }

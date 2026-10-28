@@ -3,14 +3,13 @@ package pe.unheval.emotv.domain.repository
 import kotlinx.coroutines.flow.StateFlow
 import pe.unheval.emotv.domain.model.Answer
 import pe.unheval.emotv.domain.model.AuthUser
-import pe.unheval.emotv.domain.model.ConfirmationItem
 import pe.unheval.emotv.domain.model.DashboardSummary
 import pe.unheval.emotv.domain.model.FrameResult
 import pe.unheval.emotv.domain.model.GuidedPhase
 import pe.unheval.emotv.domain.model.Outcome
 import pe.unheval.emotv.domain.model.QuestionnaireMoment
 import pe.unheval.emotv.domain.model.ServerStatus
-import pe.unheval.emotv.domain.model.SessionProtocol
+import pe.unheval.emotv.domain.model.SessionPlan
 import pe.unheval.emotv.domain.model.SessionStep
 import pe.unheval.emotv.domain.model.StartedSession
 import pe.unheval.emotv.domain.model.StopReason
@@ -60,20 +59,19 @@ interface PinRepository {
 }
 
 /**
- * Sesión guiada con participante. Nada se guarda en disco: las respuestas, los estímulos
- * y los cuadros viven en memoria mientras se usan.
+ * Sesión con o sin protocolo. Nada se guarda en disco: las respuestas, los estímulos y los
+ * cuadros viven en memoria mientras se usan.
  */
 interface SessionRepository {
-    suspend fun protocols(participantId: String): Outcome<List<SessionProtocol>>
-
-    suspend fun start(participantId: String, protocolId: String): Outcome<StartedSession>
-
-    /** Envía las casillas marcadas; las que no estén en [checked] van en `false`. */
-    suspend fun confirm(sessionId: String, checked: Set<ConfirmationItem>): Outcome<SessionStep>
+    /**
+     * Crea la sesión con la confirmación ya marcada (`authorization_confirmed: true`). Solo
+     * se llama después de que quien conduce marcó la casilla.
+     */
+    suspend fun start(plan: SessionPlan): Outcome<StartedSession>
 
     suspend fun next(sessionId: String): Outcome<SessionStep>
 
-    /** Respuestas del participante (`entry_mode: participant`). No se devuelven. */
+    /** Respuestas de la persona evaluada (`entry_mode: participant`). No se devuelven. */
     suspend fun submitQuestionnaire(
         sessionId: String,
         moment: QuestionnaireMoment,
@@ -89,6 +87,9 @@ interface SessionRepository {
      * Al terminar, haya salido bien o no, borra el contenido de [jpeg].
      */
     suspend fun sendFrame(sessionId: String, jpeg: ByteArray): Outcome<FrameResult>
+
+    /** Termina una sesión sin protocolo (fase `live`). */
+    suspend fun finish(sessionId: String): Outcome<GuidedPhase?>
 
     suspend fun stop(sessionId: String, reason: StopReason): Outcome<GuidedPhase?>
 

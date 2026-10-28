@@ -76,7 +76,7 @@ import pe.unheval.emotv.ui.theme.EmotvType
 
 private val ContentMaxWidth = 720.dp
 
-/** Lo que ve el participante en cada fase. No muestra nada que no venga del servidor. */
+/** Lo que ve la persona evaluada en cada fase. No muestra nada que no venga del servidor. */
 @Composable
 fun SessionPhaseContent(
     state: LockedSessionUiState,
@@ -119,19 +119,22 @@ fun SessionPhaseContent(
             captureIssues = if (step.phase == GuidedPhase.Stimuli) state.captureIssues else emptyList(),
             modifier = modifier,
         )
+        GuidedPhase.Live -> LiveContent(captureIssues = state.captureIssues, modifier = modifier)
         GuidedPhase.Finished -> EndContent(
             title = stringResource(R.string.session_finished_title),
             body = stringResource(R.string.session_finished_body),
+            code = state.code,
             onHandBack = onHandBack,
             modifier = modifier,
         )
         GuidedPhase.Stopped -> EndContent(
             title = stringResource(R.string.session_stopped_title),
             body = stringResource(R.string.session_stopped_body),
+            code = state.code,
             onHandBack = onHandBack,
             modifier = modifier,
         )
-        GuidedPhase.Confirmation, null -> Waiting(modifier)
+        null -> Waiting(modifier)
     }
 }
 
@@ -454,6 +457,18 @@ private fun CalibrationContent(
     }
 }
 
+// --- En vivo (sin protocolo) --------------------------------------------------------------
+
+/** La cámara sigue tomando cuadros; no se muestra ningún resultado. Termina quien conduce. */
+@Composable
+private fun LiveContent(captureIssues: List<CaptureIssue>, modifier: Modifier = Modifier) {
+    CenteredColumn(modifier) {
+        Heading(stringResource(R.string.live_title))
+        Text(stringResource(R.string.live_body), style = EmotvType.Subtitle, color = EmotvColors.Charcoal)
+        CaptureHint(captureIssues, color = EmotvColors.Charcoal)
+    }
+}
+
 /** Indicación neutral para acomodarse frente a la cámara. Nunca menciona la expresión. */
 @Composable
 private fun CaptureHint(issues: List<CaptureIssue>, color: Color) {
@@ -550,10 +565,17 @@ private fun rememberDecoded(image: StimulusImage): ImageBitmap? {
 // --- Fin ----------------------------------------------------------------------------------
 
 @Composable
-private fun EndContent(title: String, body: String, onHandBack: () -> Unit, modifier: Modifier = Modifier) {
+private fun EndContent(
+    title: String,
+    body: String,
+    code: String,
+    onHandBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     CenteredColumn(modifier) {
         Heading(title)
         Text(body, style = EmotvType.Subtitle, color = EmotvColors.Charcoal)
+        Text(stringResource(R.string.session_code, code), style = EmotvType.CardTitle, color = EmotvColors.Ink)
         PrimaryButton(
             text = stringResource(R.string.session_hand_back),
             onClick = onHandBack,

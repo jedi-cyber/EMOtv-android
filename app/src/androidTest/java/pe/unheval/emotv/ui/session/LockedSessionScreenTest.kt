@@ -14,7 +14,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import pe.unheval.emotv.domain.model.GuidedPhase
-import pe.unheval.emotv.domain.model.ParticipantKind
+import pe.unheval.emotv.domain.model.SessionAudience
 import pe.unheval.emotv.domain.model.SessionStep
 import pe.unheval.emotv.ui.theme.EMOtvTheme
 
@@ -26,6 +26,7 @@ class LockedSessionScreenTest {
 
     private fun step(phase: GuidedPhase) = SessionStep(
         sessionId = "sesion-1",
+        code = "S-4F7K2Q",
         phase = phase,
         stopReason = null,
         sendFrames = false,
@@ -34,7 +35,6 @@ class LockedSessionScreenTest {
         questionnaire = null,
         calibration = null,
         stimulus = null,
-        confirmation = null,
         stepCount = 2,
     )
 
@@ -48,7 +48,7 @@ class LockedSessionScreenTest {
     fun quieroPararEstaVisibleYPausaLaSesion() {
         var stops = 0
         show(
-            LockedSessionUiState(participantKind = ParticipantKind.Adult, step = step(GuidedPhase.Calibration)),
+            LockedSessionUiState(code = "S-4F7K2Q", audience = SessionAudience.Adult, step = step(GuidedPhase.Calibration)),
             LockedSessionActions(onRequestStop = { stops++ }),
         )
 
@@ -60,7 +60,8 @@ class LockedSessionScreenTest {
     fun enPausaPideElPinYNoDejaContinuarSinEl() {
         show(
             LockedSessionUiState(
-                participantKind = ParticipantKind.Adult,
+                code = "S-4F7K2Q",
+                audience = SessionAudience.Adult,
                 step = step(GuidedPhase.Stimuli),
                 pause = SessionPause.ParticipantRequest,
             ),
@@ -76,7 +77,8 @@ class LockedSessionScreenTest {
     fun sinConexionAvisaAQuienConduce() {
         show(
             LockedSessionUiState(
-                participantKind = ParticipantKind.Adult,
+                code = "S-4F7K2Q",
+                audience = SessionAudience.Adult,
                 step = step(GuidedPhase.Stimuli),
                 pause = SessionPause.Offline,
             ),
@@ -91,7 +93,8 @@ class LockedSessionScreenTest {
         var ends = 0
         show(
             LockedSessionUiState(
-                participantKind = ParticipantKind.Child,
+                code = "S-4F7K2Q",
+                audience = SessionAudience.Child,
                 step = step(GuidedPhase.Stimuli),
                 pause = SessionPause.ParticipantRequest,
                 unlocked = true,
@@ -111,7 +114,8 @@ class LockedSessionScreenTest {
         var submits = 0
         show(
             LockedSessionUiState(
-                participantKind = ParticipantKind.Adult,
+                code = "S-4F7K2Q",
+                audience = SessionAudience.Adult,
                 step = step(GuidedPhase.Stimuli),
                 pause = SessionPause.ExitRequest,
                 pin = "1234",
@@ -130,7 +134,8 @@ class LockedSessionScreenTest {
     fun unPinIncorrectoSeAvisaYNoMuestraLasOpciones() {
         show(
             LockedSessionUiState(
-                participantKind = ParticipantKind.Adult,
+                code = "S-4F7K2Q",
+                audience = SessionAudience.Adult,
                 step = step(GuidedPhase.Stimuli),
                 pause = SessionPause.ExitRequest,
                 pinError = PinCheckError.Wrong,
@@ -145,7 +150,8 @@ class LockedSessionScreenTest {
     fun trasVariosIntentosBloqueaElPin() {
         show(
             LockedSessionUiState(
-                participantKind = ParticipantKind.Adult,
+                code = "S-4F7K2Q",
+                audience = SessionAudience.Adult,
                 step = step(GuidedPhase.Stimuli),
                 pause = SessionPause.ExitRequest,
                 pin = "1234",
@@ -162,7 +168,8 @@ class LockedSessionScreenTest {
         var ends = 0
         show(
             LockedSessionUiState(
-                participantKind = ParticipantKind.Adult,
+                code = "S-4F7K2Q",
+                audience = SessionAudience.Adult,
                 step = step(GuidedPhase.Finished),
                 pause = SessionPause.ExitRequest,
                 unlocked = true,
@@ -171,7 +178,24 @@ class LockedSessionScreenTest {
         )
 
         compose.onNodeWithTag(LockedSessionTags.RESUME).assertDoesNotExist()
+        // El código queda a la vista para anotarlo en el formato firmado.
+        compose.onNodeWithTag(LockedSessionTags.CODE).assertIsDisplayed()
         compose.onNodeWithText("Volver al inicio").performClick()
         assertEquals(1, ends)
+    }
+
+    @Test
+    fun enVivoNoMuestraResultadosYSiguePermitiendoParar() {
+        show(LockedSessionUiState(code = "S-4F7K2Q", audience = SessionAudience.Own, step = step(GuidedPhase.Live)))
+
+        compose.onNodeWithText("Sesión en curso").assertIsDisplayed()
+        compose.onNodeWithTag(LockedSessionTags.STOP).assertIsDisplayed()
+    }
+
+    @Test
+    fun alTerminarMuestraElCodigoDeLaSesion() {
+        show(LockedSessionUiState(code = "S-4F7K2Q", audience = SessionAudience.Adult, step = step(GuidedPhase.Finished)))
+
+        compose.onNodeWithText("Código de la sesión: S-4F7K2Q").assertIsDisplayed()
     }
 }

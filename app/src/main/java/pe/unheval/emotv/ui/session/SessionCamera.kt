@@ -178,7 +178,7 @@ fun CameraPreview(onReadyChange: (Boolean) -> Unit, modifier: Modifier = Modifie
 }
 
 /**
- * Cámara del modo sesión, sin vista previa: el participante ve solo el cuestionario y los
+ * Cámara del modo sesión, sin vista previa: la persona evaluada ve solo el cuestionario y los
  * estímulos. Se entrega al ViewModel como [FrameSource] y se libera al salir.
  */
 @Composable

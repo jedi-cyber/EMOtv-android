@@ -3,12 +3,15 @@
 Aplicativo Android nativo (Kotlin y Jetpack Compose) de EMOtv, proyecto de innovación de
 la Facultad de Psicología de la UNHEVAL. Complementa al sistema web: quien conduce la
 sesión (Usuario o Docente) inicia sesión, revisa el resumen del día e inicia una sesión con
-un participante. La tablet pasa a una pantalla bloqueada que muestra el cuestionario y los
-estímulos mientras la cámara frontal envía cuadros al servidor.
+un protocolo o sin ninguno. La tablet pasa a una pantalla bloqueada que muestra el
+cuestionario y los estímulos (o solo la cámara en curso, sin protocolo) mientras la cámara
+frontal envía cuadros al servidor. Las personas evaluadas no se registran: cada sesión lleva
+un código aleatorio que se muestra al empezar y al terminar.
 
 El aplicativo no analiza nada: cada cuadro se envía al servidor, que estima la expresión
 facial con modelos locales y lo descarta. EMOtv estima una expresión; no diagnostica.
-Participantes, protocolos, cuestionarios y reportes se gestionan en la web.
+Protocolos, cuestionarios y reportes se gestionan en la web. El aplicativo sigue la revisión
+3 del contrato (`docs/mobile-api.md`).
 
 ## Requisitos
 
@@ -88,7 +91,7 @@ Hay que repetir `adb reverse` cada vez que se reconecta el cable o se reinicia l
 ### Por qué el servidor debe ofrecer HTTPS
 
 - Por la tablet pasan la contraseña de quien conduce, sus tokens, las respuestas de los
-  cuestionarios y cuadros del rostro de los participantes, entre ellos niños. Sin cifrado,
+  cuestionarios y cuadros del rostro de las personas evaluadas, entre ellas niños. Sin cifrado,
   cualquier equipo de la misma red wifi puede leerlos o modificarlos.
 - El servidor, en producción, rechaza toda ruta `/mobile` que no llegue por HTTPS
   (`403 https_required`).
@@ -106,7 +109,7 @@ En la red local hay dos opciones:
 - El proxy TLS de la institución, si ya publica el servidor con un certificado válido.
 
 Para una prueba rápida en la red local se puede usar la versión de depuración con HTTP,
-pero solo con datos de prueba, nunca con participantes reales.
+pero solo con datos de prueba, nunca con personas evaluadas reales.
 
 ## Compilar y probar
 
@@ -184,5 +187,7 @@ un fallo de esa compilación. Guárdalo junto al APK, pero no lo publiques.
 - En el dispositivo solo quedan el token de renovación, cifrado con una clave del Android
   Keystore, y el hash del PIN. Ambos se borran al cerrar sesión.
 - Sin copias de seguridad (`allowBackup="false"` y reglas de exclusión), sin caché de
-  disco HTTP y con `FLAG_SECURE` en las pantallas con participantes o sesiones.
+  disco HTTP y, en la versión final, con `FLAG_SECURE` en las pantallas con sesiones o el
+  PIN. La versión de depuración permite capturas de pantalla para documentar el proyecto;
+  por eso nunca se usa con personas evaluadas reales.
 - Sin SDKs de analítica, publicidad ni reporte de fallos.

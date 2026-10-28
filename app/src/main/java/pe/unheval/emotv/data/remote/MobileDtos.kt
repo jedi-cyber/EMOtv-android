@@ -16,7 +16,7 @@ data class StatusDto(
 @Serializable
 data class ServicesDto(
     val login: Boolean = false,
-    @SerialName("participant_sessions") val participantSessions: Boolean = false,
+    val sessions: Boolean = false,
 )
 
 @Serializable
@@ -44,38 +44,29 @@ data class UserDto(
 )
 
 /**
- * `GET /mobile/summary`. Los participantes solo traen código y edad: el aplicativo nunca
- * recibe ni muestra su nombre (`ignoreUnknownKeys` descarta cualquier campo adicional).
+ * `GET /mobile/summary`. Las personas evaluadas no se registran: cada sesión se identifica
+ * solo por su código (`ignoreUnknownKeys` descarta cualquier campo adicional).
  */
 @Serializable
 data class SummaryDto(
     val user: UserDto,
     val date: String,
     @SerialName("today_sessions") val todaySessions: List<SessionDto> = emptyList(),
-    val participants: List<ParticipantDto> = emptyList(),
+    @SerialName("recent_sessions") val recentSessions: List<SessionDto> = emptyList(),
+    val protocols: List<ProtocolDto> = emptyList(),
+    val audiences: List<AudienceDto> = emptyList(),
 )
 
 @Serializable
 data class SessionDto(
     val id: String,
+    /** `null` solo en sesiones anteriores a la revisión 3 del contrato. */
+    val code: String? = null,
     @SerialName("started_at") val startedAt: String,
     val state: String,
+    val audience: String? = null,
     @SerialName("guided_phase") val guidedPhase: String? = null,
-    @SerialName("participant_id") val participantId: String,
-    @SerialName("participant_code") val participantCode: String,
     @SerialName("protocol_name") val protocolName: String? = null,
-)
-
-@Serializable
-data class ParticipantDto(
-    val id: String,
-    val code: String,
-    val kind: String,
-    @SerialName("age_years") val ageYears: Int? = null,
-    val ready: Boolean = false,
-    val missing: List<String> = emptyList(),
-    val warnings: List<String> = emptyList(),
-    @SerialName("last_session") val lastSession: SessionDto? = null,
 )
 
 @Serializable
@@ -84,47 +75,40 @@ data class ProtocolDto(
     val name: String,
     val version: Int = 1,
     @SerialName("for_children") val forChildren: Boolean = false,
+    val audience: String? = null,
     @SerialName("step_count") val stepCount: Int = 0,
     @SerialName("has_pre_questionnaire") val hasPreQuestionnaire: Boolean = false,
     @SerialName("has_post_questionnaire") val hasPostQuestionnaire: Boolean = false,
+    val confirmation: String = "",
 )
 
+/** Opción de «¿Con quién es la sesión?» para empezar sin protocolo. */
+@Serializable
+data class AudienceDto(val value: String, val confirmation: String = "")
+
+/** Con protocolo va `protocol_id`; sin protocolo, `session_type`. */
 @Serializable
 data class StartSessionRequestDto(
-    @SerialName("participant_id") val participantId: String,
-    @SerialName("protocol_id") val protocolId: String,
+    @SerialName("protocol_id") val protocolId: String? = null,
+    @SerialName("session_type") val sessionType: String? = null,
+    @SerialName("authorization_confirmed") val authorizationConfirmed: Boolean,
 )
 
 @Serializable
 data class StartSessionDto(
     @SerialName("session_id") val sessionId: String,
+    val code: String,
     val phase: String,
-    val participant: SessionParticipantDto,
-    val confirmation: ConfirmationDto? = null,
-)
-
-/** Solo código y tipo: el nombre del participante nunca llega al aplicativo. */
-@Serializable
-data class SessionParticipantDto(val id: String, val code: String, val kind: String)
-
-@Serializable
-data class ConfirmationDto(
+    val audience: String,
+    @SerialName("has_protocol") val hasProtocol: Boolean = true,
     val reminder: String? = null,
-    val required: List<String> = emptyList(),
-)
-
-@Serializable
-data class ConfirmRequestDto(
-    @SerialName("commitment_reminder") val commitmentReminder: Boolean,
-    @SerialName("authorization_confirmed") val authorizationConfirmed: Boolean,
-    @SerialName("guardian_present") val guardianPresent: Boolean,
-    @SerialName("child_assent") val childAssent: Boolean,
 )
 
 /** `GET .../next`: siempre trae todos los campos; los que no aplican, en `null`. */
 @Serializable
 data class SessionStepDto(
     @SerialName("session_id") val sessionId: String,
+    val code: String? = null,
     val phase: String,
     @SerialName("stop_reason") val stopReason: String? = null,
     @SerialName("send_frames") val sendFrames: Boolean = false,
@@ -133,7 +117,6 @@ data class SessionStepDto(
     val questionnaire: QuestionnaireDto? = null,
     val calibration: CalibrationDto? = null,
     val stimulus: StimulusDto? = null,
-    val confirmation: ConfirmationDto? = null,
     @SerialName("step_count") val stepCount: Int? = null,
 )
 
@@ -167,7 +150,7 @@ data class CalibrationDto(
     val notice: String? = null,
 )
 
-/** `title` existe en la API, pero no se muestra al participante ni se guarda. */
+/** `title` existe en la API, pero no se muestra a la persona evaluada ni se guarda. */
 @Serializable
 data class StimulusDto(
     @SerialName("step_index") val stepIndex: Int,

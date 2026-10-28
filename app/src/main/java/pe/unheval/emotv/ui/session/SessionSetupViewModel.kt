@@ -2,110 +2,123 @@ package pe.unheval.emotv.ui.session
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
-import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import androidx.navigation.toRoute
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import pe.unheval.emotv.EmotvApplication
-import pe.unheval.emotv.domain.model.ConfirmationItem
+import pe.unheval.emotv.domain.model.AudienceOption
 import pe.unheval.emotv.domain.model.Outcome
-import pe.unheval.emotv.domain.model.ParticipantKind
+import pe.unheval.emotv.domain.model.SessionAudience
+import pe.unheval.emotv.domain.model.SessionPlan
 import pe.unheval.emotv.domain.model.SessionProtocol
-import pe.unheval.emotv.domain.model.StartedSession
-import pe.unheval.emotv.domain.model.StopReason
 import pe.unheval.emotv.domain.repository.SessionRepository
-import pe.unheval.emotv.ui.navigation.SessionSetupRoute
+import pe.unheval.emotv.domain.usecase.LoadDashboardUseCase
 
 /** Datos para abrir la pantalla bloqueada. */
-data class LockedSessionArgs(val sessionId: String, val participantKind: ParticipantKind)
+data class LockedSessionArgs(val sessionId: String, val code: String, val audience: SessionAudience)
+
+/** Lo que eligió quien conduce: un protocolo o ninguno. */
+sealed interface SetupChoice {
+    data class Protocol(val id: String) : SetupChoice
+    data object NoProtocol : SetupChoice
+}
 
 data class SessionSetupUiState(
-    val participantCode: String,
-    val isLoadingProtocols: Boolean = true,
+    val isLoadingOptions: Boolean = true,
     val protocols: List<SessionProtocol> = emptyList(),
-    val selectedProtocolId: String? = null,
-    val isStarting: Boolean = false,
-    /** Sesión creada en el servidor, a la espera de la confirmación previa. */
-    val started: StartedSession? = null,
-    val checked: Set<ConfirmationItem> = emptySet(),
+    val audiences: List<AudienceOption> = emptyList(),
+    val choice: SetupChoice? = null,
+    /** Sin protocolo: con quién es la sesión. Con protocolo lo decide el protocolo. */
+    val audience: SessionAudience? = null,
+    /** La única casilla de confirmación. Empieza sin marcar y se desmarca al cambiar la elección. */
+    val confirmed: Boolean = false,
     /** La vista previa de la cámara frontal está funcionando. */
     val cameraReady: Boolean = false,
     /** Quien conduce revisó la iluminación y el encuadre en la vista previa. */
     val lightingChecked: Boolean = false,
-    val isConfirming: Boolean = false,
-    val isCancelling: Boolean = false,
+    val isStarting: Boolean = false,
     val error: SessionError? = null,
-    /** Confirmada: pasar al modo sesión bloqueado. */
+    /** Sesión creada: pasar al modo sesión bloqueado. */
     val locked: LockedSessionArgs? = null,
     /** Se volvió sin iniciar: regresar al dashboard. */
     val closed: Boolean = false,
 ) {
-    val selectedProtocol: SessionProtocol? get() = protocols.firstOrNull { it.id == selectedProtocolId }
+    val selectedProtocol: SessionProtocol?
+        get() = (choice as? SetupChoice.Protocol)?.let { c -> protocols.firstOrNull { it.id == c.id } }
 
-    val missingConfirmations: List<ConfirmationItem>
-        get() = started?.confirmation?.required.orEmpty().filterNot { it in checked }
+    val plan: SessionPlan?
+        get() = when (choice) {
+            is SetupChoice.Protocol -> selectedProtocol?.let { SessionPlan.WithProtocol(it.id) }
+            SetupChoice.NoProtocol -> audience?.let { SessionPlan.WithoutProtocol(it) }
+            null -> null
+        }
 
-    /** Todo lo que se exige antes de entregar la tablet. */
+    /** Texto de la casilla, tal como lo envía el servidor para el protocolo o el público. */
+    val confirmationText: String?
+        get() = when (choice) {
+            is SetupChoice.Protocol -> selectedProtocol?.confirmation
+            SetupChoice.NoProtocol -> audiences.firstOrNull { it.audience == audience }?.confirmation
+            null -> null
+        }?.takeIf { it.isNotBlank() }
+
+    /** Todo lo que se exige antes de crear la sesión y entregar la tablet. */
     val canHandOver: Boolean
-        get() = started != null && missingConfirmations.isEmpty() && cameraReady && lightingChecked &&
-            !isConfirming && !isCancelling
+        get() = plan != null && confirmationText != null && confirmed && cameraReady && lightingChecked &&
+            !isStarting && locked == null
 }
 
 /**
- * Preparación de la sesión: quien conduce elige el protocolo, confirma la autorización y
- * revisa la iluminación. Las reglas (autorizaciones, protocolos aprobados) las impone el
- * servidor; aquí solo se reflejan.
+ * Preparación de la sesión: quien conduce elige un protocolo o ninguno (y entonces con quién
+ * es la sesión), revisa la cámara y marca la confirmación. La sesión se crea recién al
+ * entregar la tablet. Las reglas las impone el servidor; aquí solo se reflejan.
  */
 class SessionSetupViewModel(
-    private val participantId: String,
-    participantCode: String,
+    private val loadOptions: LoadDashboardUseCase,
     private val sessions: SessionRepository,
 ) : ViewModel() {
 
-    private val state = MutableStateFlow(SessionSetupUiState(participantCode = participantCode))
+    private val state = MutableStateFlow(SessionSetupUiState())
     val uiState: StateFlow<SessionSetupUiState> = state.asStateFlow()
 
     init {
-        loadProtocols()
+        load()
     }
 
-    fun retryProtocols() {
-        if (state.value.isLoadingProtocols) return
-        state.update { it.copy(isLoadingProtocols = true, error = null) }
-        loadProtocols()
+    fun retry() {
+        if (state.value.isLoadingOptions) return
+        state.update { it.copy(isLoadingOptions = true, error = null) }
+        load()
     }
 
-    fun selectProtocol(id: String) {
+    fun choose(choice: SetupChoice) {
         val current = state.value
-        if (current.started != null || current.protocols.none { it.id == id }) return
-        state.update { it.copy(selectedProtocolId = id, error = null) }
-    }
-
-    /** `POST /mobile/sessions`: crea la sesión y trae el recordatorio y las casillas. */
-    fun startSession() {
-        val current = state.value
-        val protocol = current.selectedProtocol ?: return
-        if (current.isStarting || current.started != null) return
-        state.update { it.copy(isStarting = true, error = null) }
-        viewModelScope.launch {
-            when (val result = sessions.start(participantId, protocol.id)) {
-                is Outcome.Success -> state.update { it.copy(isStarting = false, started = result.value) }
-                is Outcome.Failure -> state.update {
-                    it.copy(isStarting = false, error = SessionError.from(result.error))
-                }
-            }
+        if (current.isStarting || current.choice == choice) return
+        if (choice is SetupChoice.Protocol && current.protocols.none { it.id == choice.id }) return
+        state.update {
+            it.copy(
+                choice = choice,
+                audience = if (choice == SetupChoice.NoProtocol) it.audience else null,
+                confirmed = false,
+                error = null,
+            )
         }
     }
 
-    fun setChecked(item: ConfirmationItem, checked: Boolean) {
-        if (state.value.started == null) return
-        state.update { it.copy(checked = if (checked) it.checked + item else it.checked - item) }
+    fun chooseAudience(audience: SessionAudience) {
+        val current = state.value
+        if (current.isStarting || current.choice != SetupChoice.NoProtocol || current.audience == audience) return
+        if (current.audiences.none { it.audience == audience }) return
+        state.update { it.copy(audience = audience, confirmed = false, error = null) }
+    }
+
+    fun setConfirmed(checked: Boolean) {
+        if (state.value.confirmationText == null || state.value.isStarting) return
+        state.update { it.copy(confirmed = checked) }
     }
 
     fun onCameraReady(ready: Boolean) {
@@ -117,64 +130,52 @@ class SessionSetupViewModel(
         state.update { it.copy(lightingChecked = checked) }
     }
 
-    /** `POST .../confirm` y entrega de la tablet. No avanza sin todas las confirmaciones. */
+    /** `POST /mobile/sessions` con la confirmación marcada, y entrega de la tablet. */
     fun handOver() {
         val current = state.value
-        val started = current.started ?: return
+        val plan = current.plan ?: return
         if (!current.canHandOver) return
-        state.update { it.copy(isConfirming = true, error = null) }
+        state.update { it.copy(isStarting = true, error = null) }
         viewModelScope.launch {
-            when (val result = sessions.confirm(started.sessionId, current.checked)) {
+            when (val result = sessions.start(plan)) {
                 is Outcome.Success -> state.update {
-                    it.copy(
-                        isConfirming = false,
-                        locked = LockedSessionArgs(started.sessionId, started.participantKind),
-                    )
+                    val started = result.value
+                    it.copy(isStarting = false, locked = LockedSessionArgs(started.sessionId, started.code, started.audience))
                 }
                 is Outcome.Failure -> state.update {
-                    it.copy(isConfirming = false, error = SessionError.from(result.error))
+                    it.copy(isStarting = false, error = SessionError.from(result.error))
                 }
             }
         }
     }
 
-    /**
-     * Volver sin iniciar. Si ya se creó la sesión, se interrumpe para que no quede en curso;
-     * si no hay conexión, el servidor la conserva y se puede cerrar desde la web.
-     */
+    /** Volver sin iniciar: todavía no existe ninguna sesión en el servidor. */
     fun cancel() {
-        val current = state.value
-        if (current.isCancelling || current.isConfirming || current.closed) return
-        val started = current.started
-        if (started == null) {
-            state.update { it.copy(closed = true) }
-            return
-        }
-        state.update { it.copy(isCancelling = true) }
-        viewModelScope.launch {
-            sessions.stop(started.sessionId, StopReason.Conductor)
-            state.update { it.copy(isCancelling = false, closed = true) }
-        }
+        if (state.value.isStarting) return
+        state.update { it.copy(closed = true) }
     }
 
     fun onNavigated() = state.update { it.copy(locked = null) }
 
-    private fun loadProtocols() {
+    private fun load() {
         viewModelScope.launch {
-            when (val result = sessions.protocols(participantId)) {
+            when (val result = loadOptions()) {
                 is Outcome.Success -> state.update { current ->
-                    val protocols = result.value
+                    val protocols = result.value.protocols
+                    // Sin protocolos utilizables, queda elegida la sesión sin protocolo.
+                    val choice = current.choice.takeIf { choice ->
+                        choice == SetupChoice.NoProtocol ||
+                            (choice is SetupChoice.Protocol && protocols.any { it.id == choice.id })
+                    } ?: SetupChoice.NoProtocol.takeIf { protocols.isEmpty() }
                     current.copy(
-                        isLoadingProtocols = false,
+                        isLoadingOptions = false,
                         protocols = protocols,
-                        // Con un único protocolo, queda elegido.
-                        selectedProtocolId = current.selectedProtocolId
-                            ?.takeIf { id -> protocols.any { it.id == id } }
-                            ?: protocols.singleOrNull()?.id,
+                        audiences = result.value.audiences,
+                        choice = choice,
                     )
                 }
                 is Outcome.Failure -> state.update {
-                    it.copy(isLoadingProtocols = false, error = SessionError.from(result.error))
+                    it.copy(isLoadingOptions = false, error = SessionError.from(result.error))
                 }
             }
         }
@@ -184,8 +185,7 @@ class SessionSetupViewModel(
         val Factory = viewModelFactory {
             initializer {
                 val container = (this[APPLICATION_KEY] as EmotvApplication).container
-                val route = createSavedStateHandle().toRoute<SessionSetupRoute>()
-                SessionSetupViewModel(route.participantId, route.participantCode, container.sessionRepository)
+                SessionSetupViewModel(container.loadDashboard, container.sessionRepository)
             }
         }
     }
