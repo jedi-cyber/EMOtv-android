@@ -10,17 +10,16 @@ import org.junit.Rule
 import org.junit.Test
 import pe.unheval.emotv.data.remote.ApiJson
 import pe.unheval.emotv.data.remote.SummaryDto
-import pe.unheval.emotv.domain.model.GuidedPhase
-import pe.unheval.emotv.domain.model.MissingRequirement
-import pe.unheval.emotv.domain.model.ParticipantKind
+import pe.unheval.emotv.domain.model.ReportStatus
+import pe.unheval.emotv.domain.model.SessionAudience
 import pe.unheval.emotv.domain.model.SessionState
 import pe.unheval.emotv.domain.usecase.LoadDashboardUseCase
 import pe.unheval.emotv.domain.usecase.LogoutUseCase
 import pe.unheval.emotv.testing.MainDispatcherRule
 import pe.unheval.emotv.testing.TestGraph
+import pe.unheval.emotv.testing.docenteUser
 import pe.unheval.emotv.testing.mobileError
 import pe.unheval.emotv.testing.networkError
-import pe.unheval.emotv.testing.readyAdultDto
 import pe.unheval.emotv.testing.sessionDto
 import pe.unheval.emotv.testing.summaryDto
 import java.time.Clock
@@ -33,7 +32,7 @@ class DashboardViewModelTest {
     @get:Rule
     val mainRule = MainDispatcherRule()
 
-    private val graph = TestGraph(mainRule.dispatcher)
+    private val graph = TestGraph()
 
     // Perú (UTC-5), 10:00 hora local del 23 de octubre.
     private val zone = ZoneOffset.ofHours(-5)
@@ -41,14 +40,13 @@ class DashboardViewModelTest {
 
     private fun viewModel() = DashboardViewModel(
         loadDashboard = LoadDashboardUseCase(graph.summaryRepository, clock),
-        logout = LogoutUseCase(graph.authRepository, graph.pinRepository),
+        logout = LogoutUseCase(graph.authRepository),
         zone = zone,
     )
 
     @Before
     fun signIn() = runTest {
         graph.authRepository.login("usuario1@example.com", "valor-de-prueba")
-        graph.pinRepository.savePin("1234")
     }
 
     @Test
@@ -62,85 +60,34 @@ class DashboardViewModelTest {
         val content = assertNotNull(state.content)
         assertEquals("Usuario", content.roleName)
         assertEquals(LocalDate.of(2026, 10, 23), content.date)
-        assertEquals(listOf("P-RGNYTB", "P-7KQ2MD"), content.participants.map { it.code })
-        assertEquals(30, content.participants.first().ageYears)
+        // Las recientes, de la más nueva a la más antigua, identificadas solo por su código.
+        assertEquals(listOf("S-4F7K2Q", "S-9QW3ZD"), content.recentSessions.map { it.code })
+        assertEquals(SessionAudience.Own, content.recentSessions.last().audience)
+        assertNull(content.recentSessions.last().protocolName)
+        assertEquals(ReportStatus.Draft, content.recentSessions.last().reportStatus)
+        assertFalse(content.isDocente)
 
         val today = content.todaySessions.single()
+        assertEquals("S-4F7K2Q", today.code)
+        assertEquals(SessionAudience.Adult, today.audience)
         assertEquals(SessionState.InProgress, today.state)
-        assertEquals(GuidedPhase.Stimuli, today.guidedPhase)
+        assertNull(today.reportStatus)
         // 14:04 UTC son las 09:04 en Perú.
         assertEquals(1, content.activity.counts[9])
         assertEquals(1, content.activity.total)
     }
 
     @Test
-    fun `participante sin asentimiento queda bloqueado con el aviso del servidor`() = runTest {
-        val vm = viewModel()
-
-        vm.selectParticipant("p-nino")
-
-        val availability = vm.uiState.value.startAvailability
-        assertTrue(availability is StartAvailability.Blocked)
-        val child = (availability as StartAvailability.Blocked).participant
-        assertEquals(ParticipantKind.Child, child.kind)
-        assertFalse(child.ready)
-        assertEquals(listOf(MissingRequirement.ChildAssent), child.missing)
-        assertEquals(listOf("Falta el asentimiento del niño o la niña"), child.warnings)
-        assertNull(child.lastSession)
-    }
-
-    @Test
-    fun `participante sin autorización de cámara queda bloqueado`() = runTest {
-        graph.api.summary = { _, _ ->
-            summaryDto(
-                participants = listOf(
-                    readyAdultDto().copy(
-                        ready = false,
-                        missing = listOf("camera"),
-                        warnings = listOf("Falta la autorización para usar la cámara"),
-                    ),
-                ),
-            )
-        }
-        val vm = viewModel()
-
-        vm.selectParticipant("p-adulto")
-
-        val availability = vm.uiState.value.startAvailability
-        assertTrue(availability is StartAvailability.Blocked)
-        assertEquals(
-            listOf(MissingRequirement.Camera),
-            (availability as StartAvailability.Blocked).participant.missing,
-        )
-    }
-
-    @Test
-    fun `el inicio se habilita solo al elegir un participante listo`() = runTest {
-        val vm = viewModel()
-        assertEquals(StartAvailability.NothingSelected, vm.uiState.value.startAvailability)
-
-        vm.selectParticipant("no-existe")
-        assertEquals(StartAvailability.NothingSelected, vm.uiState.value.startAvailability)
-
-        vm.selectParticipant("p-adulto")
-        val availability = vm.uiState.value.startAvailability
-        assertTrue(availability is StartAvailability.Ready)
-        assertEquals("P-RGNYTB", (availability as StartAvailability.Ready).participant.code)
-    }
-
-    @Test
-    fun `sin participantes ni sesiones muestra el estado vacío`() = runTest {
-        graph.api.summary = { _, _ -> summaryDto(todaySessions = emptyList(), participants = emptyList()) }
+    fun `sin sesiones muestra el estado vacío`() = runTest {
+        graph.api.summary = { _, _ -> summaryDto(todaySessions = emptyList(), recentSessions = emptyList()) }
 
         val vm = viewModel()
 
-        val state = vm.uiState.value
-        val content = assertNotNull(state.content)
-        assertTrue(content.participants.isEmpty())
+        val content = assertNotNull(vm.uiState.value.content)
+        assertTrue(content.recentSessions.isEmpty())
         assertTrue(content.todaySessions.isEmpty())
         assertEquals(0, content.activity.total)
         assertNull(content.activity.firstHour)
-        assertEquals(StartAvailability.NoParticipants, state.startAvailability)
     }
 
     @Test
@@ -161,9 +108,8 @@ class DashboardViewModelTest {
     }
 
     @Test
-    fun `un error al actualizar conserva el resumen y la selección`() = runTest {
+    fun `un error al actualizar conserva el último resumen`() = runTest {
         val vm = viewModel()
-        vm.selectParticipant("p-adulto")
         graph.api.summary = { _, _ -> throw networkError() }
 
         vm.refresh()
@@ -171,20 +117,7 @@ class DashboardViewModelTest {
         val state = vm.uiState.value
         assertEquals(DashboardError.Network, state.error)
         assertFalse(state.isRefreshing)
-        assertNotNull(state.content)
-        assertEquals("p-adulto", state.selectedParticipantId)
-    }
-
-    @Test
-    fun `actualizar descarta la selección si el participante ya no está`() = runTest {
-        val vm = viewModel()
-        vm.selectParticipant("p-nino")
-        graph.api.summary = { _, _ -> summaryDto(participants = listOf(readyAdultDto())) }
-
-        vm.refresh()
-
-        assertNull(vm.uiState.value.selectedParticipantId)
-        assertEquals(StartAvailability.NothingSelected, vm.uiState.value.startAvailability)
+        assertEquals(2, assertNotNull(state.content).recentSessions.size)
     }
 
     @Test
@@ -231,26 +164,22 @@ class DashboardViewModelTest {
         assertNull(state.content)
         assertNull(graph.refreshTokenStore.value)
         assertNull(graph.tokenHolder.accessToken)
-        assertFalse(graph.pinRepository.hasPin())
     }
 
     @Test
-    fun `cerrar sesión borra todo dato en memoria, los tokens y el PIN`() = runTest {
+    fun `cerrar sesión borra todo dato en memoria y los tokens`() = runTest {
         val vm = viewModel()
-        vm.selectParticipant("p-adulto")
 
         vm.logOut()
 
         val state = vm.uiState.value
         assertTrue(state.loggedOut)
         assertNull(state.content)
-        assertNull(state.selectedParticipantId)
         assertNull(state.error)
         assertEquals(1, graph.api.logoutCalls)
         assertNull(graph.tokenHolder.accessToken)
         assertNull(graph.refreshTokenStore.value)
         assertNull(graph.authRepository.currentUser.value)
-        assertFalse(graph.pinRepository.hasPin())
     }
 
     @Test
@@ -276,25 +205,47 @@ class DashboardViewModelTest {
 
     @Test
     fun `el resumen de la documentación se interpreta sin datos de más`() = runTest {
-        // Ejemplo de docs/mobile-api.md con un campo extra que el aplicativo debe ignorar.
+        // Ejemplo de docs/mobile-api.md (revisión 4) con un campo extra que el aplicativo ignora.
         val json = """
             {"user": {"id": "user-1", "email": "usuario1@example.com", "role": "student", "role_name": "Usuario"},
-             "date": "2026-10-23",
+             "date": "2026-10-26",
              "today_sessions": [],
-             "participants": [
-               {"id": "9a1c", "code": "P-7KQ2MD", "kind": "child", "age_years": 9, "nombre": "no se usa",
-                "ready": false, "missing": ["child_assent"],
-                "warnings": ["Falta el asentimiento del niño o la niña"], "last_session": null}
-             ]}
+             "recent_sessions": [
+               {"id": "221e2a72", "code": "S-4F7K2Q", "started_at": "2026-10-26T14:04:10.922662+00:00",
+                "state": "completed", "audience": "adulto", "protocol_name": "Secuencia móvil",
+                "mine": true, "report_status": "submitted", "nombre": "no se usa"}
+             ],
+             "pending_reviews": 0}
         """.trimIndent()
         val dto = ApiJson.decodeFromString(SummaryDto.serializer(), json)
         graph.api.summary = { _, _ -> dto }
 
-        val participant = assertNotNull(viewModel().uiState.value.content).participants.single()
+        val session = assertNotNull(viewModel().uiState.value.content).recentSessions.single()
 
-        assertEquals("P-7KQ2MD", participant.code)
-        assertEquals(9, participant.ageYears)
-        assertFalse(participant.ready)
+        assertEquals("S-4F7K2Q", session.code)
+        assertEquals(SessionAudience.Adult, session.audience)
+        assertEquals(ReportStatus.Submitted, session.reportStatus)
+    }
+
+    @Test
+    fun `el Docente ve cuántos reportes esperan su revisión`() = runTest {
+        graph.api.summary = { _, _ -> summaryDto(user = docenteUser, pendingReviews = 2) }
+
+        val content = assertNotNull(viewModel().uiState.value.content)
+
+        assertTrue(content.isDocente)
+        assertEquals(2, content.pendingReviews)
+    }
+
+    @Test
+    fun `al volver a la pantalla se actualiza, la primera vez no`() = runTest {
+        val vm = viewModel()
+
+        vm.onResume()
+        assertEquals(1, graph.api.summaryRequests.size)
+
+        vm.onResume()
+        assertEquals(2, graph.api.summaryRequests.size)
     }
 
     private fun <T> assertNotNull(value: T?): T {

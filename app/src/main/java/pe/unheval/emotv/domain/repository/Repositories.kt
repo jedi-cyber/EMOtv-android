@@ -4,7 +4,14 @@ import kotlinx.coroutines.flow.StateFlow
 import pe.unheval.emotv.domain.model.AuthUser
 import pe.unheval.emotv.domain.model.DashboardSummary
 import pe.unheval.emotv.domain.model.Outcome
+import pe.unheval.emotv.domain.model.PendingReview
+import pe.unheval.emotv.domain.model.Report
+import pe.unheval.emotv.domain.model.ReportSection
 import pe.unheval.emotv.domain.model.ServerStatus
+import pe.unheval.emotv.domain.model.SessionDetail
+import pe.unheval.emotv.domain.model.SessionStatistics
+import pe.unheval.emotv.domain.model.SessionSummary
+import pe.unheval.emotv.domain.model.StatisticsScope
 import java.time.LocalDate
 
 interface StatusRepository {
@@ -38,14 +45,47 @@ interface AuthRepository {
     suspend fun logout()
 }
 
+/*
+ * Ningún dato de las sesiones se guarda en disco: las respuestas llevan
+ * `Cache-Control: no-store` y viven en memoria mientras se muestran.
+ */
+
 interface SummaryRepository {
-    /** Resumen del día [date] según el desfase horario del dispositivo. No se guarda en disco. */
+    /** Resumen del día [date] según el desfase horario del dispositivo. */
     suspend fun fetchSummary(date: LocalDate, utcOffsetMinutes: Int): Outcome<DashboardSummary>
 }
 
-interface PinRepository {
-    suspend fun hasPin(): Boolean
-    suspend fun savePin(pin: String)
-    suspend fun verifyPin(pin: String): Boolean
-    suspend fun clear()
+/** Solo consulta: las sesiones se conducen en la web. */
+interface SessionRepository {
+    /** Las sesiones que la cuenta puede ver, de la más reciente a la más antigua. */
+    suspend fun list(): Outcome<List<SessionSummary>>
+
+    suspend fun detail(sessionId: String): Outcome<SessionDetail>
+}
+
+/** Cada acción devuelve el reporte actualizado, con lo que la cuenta puede hacer ahora. */
+interface ReportRepository {
+    /** Reporte vigente de la sesión, o `null` si todavía no tiene. */
+    suspend fun forSession(sessionId: String): Outcome<Report?>
+
+    suspend fun create(sessionId: String): Outcome<Report>
+
+    suspend fun get(reportId: String): Outcome<Report>
+
+    suspend fun edit(reportId: String, narrative: String): Outcome<Report>
+
+    suspend fun submit(reportId: String): Outcome<Report>
+
+    suspend fun comment(reportId: String, section: ReportSection, text: String): Outcome<Report>
+
+    suspend fun returnWithComments(reportId: String): Outcome<Report>
+
+    suspend fun approve(reportId: String): Outcome<Report>
+
+    /** Del Docente: reportes de su grupo que esperan su revisión. */
+    suspend fun pendingReviews(): Outcome<List<PendingReview>>
+}
+
+interface StatisticsRepository {
+    suspend fun fetch(scope: StatisticsScope): Outcome<SessionStatistics>
 }

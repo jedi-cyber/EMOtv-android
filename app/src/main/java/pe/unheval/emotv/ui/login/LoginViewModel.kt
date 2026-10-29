@@ -28,7 +28,7 @@ sealed interface LoginError {
 }
 
 sealed interface LoginNavigation {
-    data object PinSetup : LoginNavigation
+    data object Home : LoginNavigation
     data class PasswordChangeRequired(val message: String?) : LoginNavigation
 }
 
@@ -78,7 +78,7 @@ class LoginViewModel(private val login: LoginUseCase) : ViewModel() {
                     is Outcome.Success -> it.copy(
                         password = "",
                         isLoading = false,
-                        navigation = LoginNavigation.PinSetup,
+                        navigation = LoginNavigation.Home,
                     )
                     is Outcome.Failure -> failure(it, result.error)
                 }

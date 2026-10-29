@@ -28,6 +28,8 @@ fun EmotvTextField(
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     trailingIcon: (@Composable () -> Unit)? = null,
+    /** Varias líneas para textos largos, como el del reporte. */
+    minLines: Int = 1,
 ) {
     OutlinedTextField(
         value = value,
@@ -40,7 +42,8 @@ fun EmotvTextField(
         textStyle = EmotvType.BodyMd,
         isError = error != null,
         supportingText = error?.let { { Text(it, style = EmotvType.Caption) } },
-        singleLine = true,
+        singleLine = minLines == 1,
+        minLines = minLines,
         keyboardOptions = keyboardOptions,
         keyboardActions = keyboardActions,
         visualTransformation = visualTransformation,

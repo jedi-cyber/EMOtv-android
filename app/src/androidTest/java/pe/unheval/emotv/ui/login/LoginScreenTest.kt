@@ -55,4 +55,34 @@ class LoginScreenTest {
         show(LoginUiState(isLoading = true))
         compose.onNodeWithTag(LoginTags.SUBMIT).assertIsNotEnabled()
     }
+
+    @Test
+    fun sinConexionExplicaQueRevisar() {
+        show(LoginUiState(error = LoginError.Network))
+
+        compose.onNodeWithText("No hay conexión con el servidor").assertIsDisplayed()
+        compose.onNodeWithText("Revisa la conexión a internet de la tablet y vuelve a intentarlo.").assertIsDisplayed()
+    }
+
+    @Test
+    fun trasDemasiadosIntentosDiceCuandoReintentar() {
+        show(LoginUiState(error = LoginError.TooManyAttempts(message = null, retryAfterSeconds = 120)))
+
+        compose.onNodeWithText("Demasiados intentos fallidos").assertIsDisplayed()
+        compose.onNodeWithText("Podrás intentarlo de nuevo en 2 minutos.", substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun cambioDeContrasenaObligatorioLlevaALaWeb() {
+        var backs = 0
+        compose.setContent {
+            EMOtvTheme {
+                PasswordChangeRequiredScreen(serverMessage = null, onBackToLogin = { backs++ })
+            }
+        }
+
+        compose.onNodeWithText("Cambia tu contraseña").assertIsDisplayed()
+        compose.onNodeWithText("Volver a iniciar sesión").performClick()
+        assertEquals(1, backs)
+    }
 }

@@ -14,11 +14,11 @@ import pe.unheval.emotv.EmotvApplication
 import pe.unheval.emotv.domain.model.AppError
 import pe.unheval.emotv.domain.model.DashboardSummary
 import pe.unheval.emotv.domain.model.Outcome
-import pe.unheval.emotv.domain.model.Participant
 import pe.unheval.emotv.domain.model.SessionSummary
 import pe.unheval.emotv.domain.model.isSessionEnded
 import pe.unheval.emotv.domain.usecase.LoadDashboardUseCase
 import pe.unheval.emotv.domain.usecase.LogoutUseCase
+import pe.unheval.emotv.domain.usecase.isDocente
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -52,42 +52,23 @@ data class DashboardContent(
     val email: String,
     val date: LocalDate,
     val todaySessions: List<SessionSummary>,
-    val participants: List<Participant>,
+    /** Las más recientes primero, con su código. */
+    val recentSessions: List<SessionSummary>,
     val activity: HourlyActivity,
+    val isDocente: Boolean = false,
+    /** Del Docente: reportes de su grupo que esperan su revisión. */
+    val pendingReviews: Int = 0,
 )
-
-/** Si se puede iniciar una sesión y, si no, por qué. */
-sealed interface StartAvailability {
-    data object NoParticipants : StartAvailability
-    data object NothingSelected : StartAvailability
-    data class Ready(val participant: Participant) : StartAvailability
-    data class Blocked(val participant: Participant) : StartAvailability
-}
 
 data class DashboardUiState(
     val isLoading: Boolean = true,
     val isRefreshing: Boolean = false,
     val content: DashboardContent? = null,
     val error: DashboardError? = null,
-    val selectedParticipantId: String? = null,
     val isLoggingOut: Boolean = false,
     /** Sesión cerrada (por la persona o porque venció): volver al inicio de sesión. */
     val loggedOut: Boolean = false,
-) {
-    val selectedParticipant: Participant?
-        get() = content?.participants?.firstOrNull { it.id == selectedParticipantId }
-
-    val startAvailability: StartAvailability
-        get() {
-            val selected = selectedParticipant
-            return when {
-                content == null || content.participants.isEmpty() -> StartAvailability.NoParticipants
-                selected == null -> StartAvailability.NothingSelected
-                selected.ready -> StartAvailability.Ready(selected)
-                else -> StartAvailability.Blocked(selected)
-            }
-        }
-}
+)
 
 class DashboardViewModel(
     private val loadDashboard: LoadDashboardUseCase,
@@ -114,10 +95,11 @@ class DashboardViewModel(
         load()
     }
 
-    fun selectParticipant(id: String) {
-        if (state.value.content?.participants?.any { it.id == id } == true) {
-            state.update { it.copy(selectedParticipantId = id) }
-        }
+    private var shown = false
+
+    /** Al volver al inicio (por ejemplo, desde un reporte) se actualiza; la primera vez ya cargó. */
+    fun onResume() {
+        if (shown) refresh() else shown = true
     }
 
     fun logOut() {
@@ -148,18 +130,12 @@ class DashboardViewModel(
             email = summary.user.email,
             date = summary.date,
             todaySessions = summary.todaySessions.sortedBy { it.startedAt },
-            participants = summary.participants,
+            recentSessions = summary.recentSessions.sortedByDescending { it.startedAt },
             activity = HourlyActivity.of(summary.todaySessions, zone),
+            isDocente = summary.user.isDocente(),
+            pendingReviews = summary.pendingReviews,
         )
-        // La selección se conserva solo si el participante sigue en la lista.
-        val selected = selectedParticipantId?.takeIf { id -> content.participants.any { it.id == id } }
-        return copy(
-            isLoading = false,
-            isRefreshing = false,
-            content = content,
-            error = null,
-            selectedParticipantId = selected,
-        )
+        return copy(isLoading = false, isRefreshing = false, content = content, error = null)
     }
 
     /** Cierra la sesión y descarta todo dato del resumen que había en memoria. */

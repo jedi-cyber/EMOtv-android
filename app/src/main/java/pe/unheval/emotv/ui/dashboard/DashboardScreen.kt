@@ -1,11 +1,9 @@
 package pe.unheval.emotv.ui.dashboard
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -18,16 +16,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -39,7 +32,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -47,29 +39,28 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import pe.unheval.emotv.R
-import pe.unheval.emotv.domain.model.GuidedPhase
-import pe.unheval.emotv.domain.model.MissingRequirement
-import pe.unheval.emotv.domain.model.Participant
-import pe.unheval.emotv.domain.model.ParticipantKind
-import pe.unheval.emotv.domain.model.SessionState
 import pe.unheval.emotv.domain.model.SessionSummary
+import pe.unheval.emotv.ui.common.ScreenError
 import pe.unheval.emotv.ui.components.Callout
 import pe.unheval.emotv.ui.components.CalloutTone
-import pe.unheval.emotv.ui.components.ChipTone
+import pe.unheval.emotv.ui.components.ContentMaxWidth
+import pe.unheval.emotv.ui.components.EmotvCard
+import pe.unheval.emotv.ui.components.ErrorCallout
+import pe.unheval.emotv.ui.components.LoadingIndicator
 import pe.unheval.emotv.ui.components.PageSubtitle
 import pe.unheval.emotv.ui.components.PageTitle
 import pe.unheval.emotv.ui.components.PrimaryButton
 import pe.unheval.emotv.ui.components.SecondaryButton
 import pe.unheval.emotv.ui.components.SecureWindow
-import pe.unheval.emotv.ui.components.StatusChip
+import pe.unheval.emotv.ui.components.SectionHeader
+import pe.unheval.emotv.ui.components.SessionRow
+import pe.unheval.emotv.ui.components.SessionStateChip
+import pe.unheval.emotv.ui.components.sessionCode
 import pe.unheval.emotv.ui.theme.EmotvColors
 import pe.unheval.emotv.ui.theme.EmotvShapes
 import pe.unheval.emotv.ui.theme.EmotvSpacing
@@ -79,33 +70,38 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-private val ContentMaxWidth = 720.dp
 private val SpanishPeru: Locale = Locale.forLanguageTag("es-PE")
 private val DayFormatter = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", SpanishPeru)
 private val TimeFormatter = DateTimeFormatter.ofPattern("HH:mm", SpanishPeru)
-private val DateTimeFormat = DateTimeFormatter.ofPattern("d 'de' MMMM, HH:mm", SpanishPeru)
 
 object DashboardTags {
     const val LIST = "dashboard_list"
-    const val START = "dashboard_start"
+    const val SESSIONS = "dashboard_sessions"
+    const val STATISTICS = "dashboard_statistics"
+    const val REVIEWS = "dashboard_reviews"
     const val ACCOUNT_MENU = "dashboard_account_menu"
     const val LOGOUT = "dashboard_logout"
-    fun participant(id: String) = "dashboard_participant_$id"
+    fun recentSession(id: String) = "dashboard_recent_$id"
 }
 
+/** A dónde lleva cada acción del inicio. */
+data class DashboardActions(
+    val onRefresh: () -> Unit,
+    val onOpenSession: (String) -> Unit,
+    val onOpenSessions: () -> Unit,
+    val onOpenStatistics: () -> Unit,
+    val onOpenReviews: () -> Unit,
+    val onLogout: () -> Unit,
+)
+
 /**
- * Dashboard de quien conduce las sesiones. Muestra participantes solo por código y edad.
- * No permite crear ni editar participantes, protocolos ni cuestionarios: eso es de la web.
+ * Inicio del Usuario o del Docente: sesiones de hoy y recientes, accesos a todas las
+ * sesiones y a las estadísticas y, del Docente, los reportes por revisar. Las sesiones se
+ * conducen en la web: el aplicativo no usa la cámara.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DashboardScreen(
-    state: DashboardUiState,
-    onRefresh: () -> Unit,
-    onSelectParticipant: (String) -> Unit,
-    onStartSession: (Participant) -> Unit,
-    onLogout: () -> Unit,
-) {
+fun DashboardScreen(state: DashboardUiState, actions: DashboardActions) {
     SecureWindow()
     val zone = remember { ZoneId.systemDefault() }
     val content = state.content
@@ -120,11 +116,11 @@ fun DashboardScreen(
             roleName = content?.roleName,
             email = content?.email,
             isLoggingOut = state.isLoggingOut,
-            onLogout = onLogout,
+            onLogout = actions.onLogout,
         )
         PullToRefreshBox(
             isRefreshing = state.isRefreshing,
-            onRefresh = onRefresh,
+            onRefresh = actions.onRefresh,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
@@ -151,7 +147,7 @@ fun DashboardScreen(
 
                 state.error?.let { error ->
                     item(key = "error") {
-                        ErrorCallout(error = error, stale = content != null, onRefresh = onRefresh)
+                        ErrorCallout(error = error.toScreenError(), stale = content != null, onRetry = actions.onRefresh)
                     }
                 }
 
@@ -160,40 +156,37 @@ fun DashboardScreen(
                 }
 
                 if (content != null) {
-                    item(key = "today") { TodayCard(content, zone) }
-                    item(key = "participants_header") {
+                    if (content.isDocente && content.pendingReviews > 0) {
+                        item(key = "pending") {
+                            Callout(
+                                title = pluralStringResource(
+                                    R.plurals.dashboard_pending_count,
+                                    content.pendingReviews,
+                                    content.pendingReviews,
+                                ),
+                                body = stringResource(R.string.dashboard_pending_body),
+                                tone = CalloutTone.Neutral,
+                            ) {
+                                PrimaryButton(
+                                    text = stringResource(R.string.dashboard_pending_action),
+                                    onClick = actions.onOpenReviews,
+                                    modifier = Modifier.testTag(DashboardTags.REVIEWS),
+                                )
+                            }
+                        }
+                    }
+                    item(key = "today") { TodayCard(content, zone, actions.onOpenSession) }
+                    item(key = "recent_header") {
                         SectionHeader(
-                            title = stringResource(R.string.dashboard_participants_title),
+                            title = stringResource(R.string.dashboard_recent_title),
                             hint = stringResource(
-                                if (content.participants.isEmpty()) R.string.dashboard_participants_empty
-                                else R.string.dashboard_participants_hint,
+                                if (content.recentSessions.isEmpty()) R.string.dashboard_recent_empty
+                                else R.string.dashboard_recent_hint,
                             ),
                         )
                     }
-                    if (content.participants.isEmpty()) {
-                        item(key = "participants_empty") {
-                            SecondaryButton(
-                                text = stringResource(R.string.dashboard_refresh),
-                                onClick = onRefresh,
-                                loading = state.isRefreshing,
-                            )
-                        }
-                    } else {
-                        item(key = "participants") {
-                            Column(
-                                modifier = Modifier.selectableGroup(),
-                                verticalArrangement = Arrangement.spacedBy(EmotvSpacing.Sm),
-                            ) {
-                                content.participants.forEach { participant ->
-                                    ParticipantCard(
-                                        participant = participant,
-                                        selected = participant.id == state.selectedParticipantId,
-                                        zone = zone,
-                                        onSelect = { onSelectParticipant(participant.id) },
-                                    )
-                                }
-                            }
-                        }
+                    if (content.recentSessions.isNotEmpty()) {
+                        item(key = "recent") { RecentSessionsCard(content.recentSessions, zone, actions.onOpenSession) }
                     }
                     item(key = "web") {
                         Callout(
@@ -206,9 +199,15 @@ fun DashboardScreen(
             }
         }
         if (content != null) {
-            StartBar(availability = state.startAvailability, onStartSession = onStartSession)
+            NavigationBar(actions)
         }
     }
+}
+
+private fun DashboardError.toScreenError(): ScreenError = when (this) {
+    is DashboardError.Server -> ScreenError.Server(message)
+    DashboardError.Network -> ScreenError.Network
+    DashboardError.Unexpected -> ScreenError.Unexpected
 }
 
 /** Barra superior fija: sección actual y menú de la cuenta con «Cerrar sesión». */
@@ -292,81 +291,7 @@ private fun TopBar(
 }
 
 @Composable
-private fun LoadingIndicator() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = EmotvSpacing.Xl),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(EmotvSpacing.Sm),
-    ) {
-        CircularProgressIndicator(color = EmotvColors.Primary)
-        Text(
-            text = stringResource(R.string.dashboard_loading),
-            style = EmotvType.BodyMd,
-            color = EmotvColors.Slate,
-            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-        )
-    }
-}
-
-@Composable
-private fun ErrorCallout(error: DashboardError, stale: Boolean, onRefresh: () -> Unit) {
-    val title = when (error) {
-        is DashboardError.Server -> error.message ?: stringResource(R.string.dashboard_error_generic)
-        DashboardError.Network -> stringResource(R.string.dashboard_error_network)
-        DashboardError.Unexpected -> stringResource(R.string.dashboard_error_generic)
-    }
-    val detail = when (error) {
-        is DashboardError.Server -> null
-        DashboardError.Network -> stringResource(R.string.dashboard_error_network_body)
-        DashboardError.Unexpected -> stringResource(R.string.dashboard_error_generic_body)
-    }
-    val staleNote = if (stale) stringResource(R.string.dashboard_error_stale) else null
-    Callout(
-        title = title,
-        body = listOfNotNull(detail, staleNote).joinToString(" ").ifEmpty { null },
-        tone = if (error == DashboardError.Network) CalloutTone.Warning else CalloutTone.Error,
-    ) {
-        SecondaryButton(text = stringResource(R.string.dashboard_refresh), onClick = onRefresh)
-    }
-}
-
-@Composable
-private fun SectionHeader(title: String, hint: String?) {
-    Column(
-        modifier = Modifier.padding(top = EmotvSpacing.Xs),
-        verticalArrangement = Arrangement.spacedBy(EmotvSpacing.Xxs),
-    ) {
-        Text(
-            text = title,
-            style = EmotvType.SectionTitle,
-            color = EmotvColors.Ink,
-            modifier = Modifier.semantics { heading() },
-        )
-        if (hint != null) {
-            Text(text = hint, style = EmotvType.BodySm, color = EmotvColors.Slate)
-        }
-    }
-}
-
-/** `card`: fondo blanco, borde fino, sin sombra. */
-@Composable
-private fun EmotvCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(EmotvShapes.Lg)
-            .background(EmotvColors.Canvas)
-            .border(1.dp, EmotvColors.Hairline, EmotvShapes.Lg)
-            .padding(EmotvSpacing.Lg),
-        verticalArrangement = Arrangement.spacedBy(EmotvSpacing.Md),
-        content = content,
-    )
-}
-
-@Composable
-private fun TodayCard(content: DashboardContent, zone: ZoneId) {
+private fun TodayCard(content: DashboardContent, zone: ZoneId, onOpenSession: (String) -> Unit) {
     EmotvCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -398,7 +323,7 @@ private fun TodayCard(content: DashboardContent, zone: ZoneId) {
             Column {
                 content.todaySessions.forEachIndexed { index, session ->
                     if (index > 0) HorizontalDivider(color = EmotvColors.Hairline)
-                    TodaySessionRow(session, zone)
+                    TodaySessionRow(session, zone, onClick = { onOpenSession(session.id) })
                 }
             }
         }
@@ -406,148 +331,56 @@ private fun TodayCard(content: DashboardContent, zone: ZoneId) {
 }
 
 @Composable
-private fun TodaySessionRow(session: SessionSummary, zone: ZoneId) {
-    Row(
+private fun TodaySessionRow(session: SessionSummary, zone: ZoneId, onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 52.dp)
-            .padding(vertical = EmotvSpacing.Xs)
-            .semantics(mergeDescendants = true) {},
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(EmotvSpacing.Sm),
+            .heightIn(min = 52.dp),
+        shape = EmotvShapes.Md,
+        contentPadding = PaddingValues(vertical = EmotvSpacing.Xs),
     ) {
-        Text(
-            text = formatTime(session.startedAt, zone),
-            style = EmotvType.ReadoutMd,
-            color = EmotvColors.Ink,
-        )
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = session.participantCode, style = EmotvType.BodySmStrong, color = EmotvColors.Ink)
-            sessionDetail(session)?.let {
-                Text(text = it, style = EmotvType.Caption, color = EmotvColors.Steel)
-            }
-        }
-        SessionStateChip(session.state)
-    }
-}
-
-@Composable
-private fun ParticipantCard(
-    participant: Participant,
-    selected: Boolean,
-    zone: ZoneId,
-    onSelect: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(EmotvShapes.Lg)
-            .background(EmotvColors.Canvas)
-            .border(
-                width = if (selected) 2.dp else 1.dp,
-                color = if (selected) EmotvColors.Primary else EmotvColors.Hairline,
-                shape = EmotvShapes.Lg,
-            )
-            .selectable(selected = selected, onClick = onSelect, role = Role.RadioButton)
-            .testTag(DashboardTags.participant(participant.id))
-            .padding(EmotvSpacing.Md),
-        horizontalArrangement = Arrangement.spacedBy(EmotvSpacing.Sm),
-    ) {
-        RadioButton(
-            selected = selected,
-            onClick = null,
-            colors = RadioButtonDefaults.colors(
-                selectedColor = EmotvColors.Primary,
-                unselectedColor = EmotvColors.HairlineStrong,
-            ),
-            modifier = Modifier.padding(top = 2.dp),
-        )
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(EmotvSpacing.Xxs),
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(EmotvSpacing.Sm),
         ) {
-            Text(text = participant.code, style = EmotvType.CardTitle, color = EmotvColors.Ink)
-            Text(text = participantMeta(participant), style = EmotvType.BodySm, color = EmotvColors.Steel)
-            val last = participant.lastSession
-            if (last == null) {
-                Text(
-                    text = stringResource(R.string.dashboard_no_sessions),
-                    style = EmotvType.BodySm,
-                    color = EmotvColors.Slate,
+            Text(
+                text = formatTime(session.startedAt, zone),
+                style = EmotvType.ReadoutMd,
+                color = EmotvColors.Ink,
+            )
+            Text(
+                text = sessionCode(session),
+                style = EmotvType.BodySmStrong,
+                color = EmotvColors.Ink,
+                modifier = Modifier.weight(1f),
+            )
+            SessionStateChip(session.state)
+        }
+    }
+}
+
+@Composable
+private fun RecentSessionsCard(sessions: List<SessionSummary>, zone: ZoneId, onOpenSession: (String) -> Unit) {
+    EmotvCard {
+        Column {
+            sessions.forEachIndexed { index, session ->
+                if (index > 0) HorizontalDivider(color = EmotvColors.Hairline)
+                SessionRow(
+                    session = session,
+                    zone = zone,
+                    onClick = { onOpenSession(session.id) },
+                    modifier = Modifier.testTag(DashboardTags.recentSession(session.id)),
                 )
-            } else {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(EmotvSpacing.Xs),
-                ) {
-                    Text(
-                        text = stringResource(
-                            R.string.dashboard_last_session,
-                            last.startedAt.atZone(zone).format(DateTimeFormat),
-                        ),
-                        style = EmotvType.BodySm,
-                        color = EmotvColors.Charcoal,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    SessionStateChip(last.state)
-                }
-                sessionDetail(last)?.let {
-                    Text(text = it, style = EmotvType.Caption, color = EmotvColors.Steel)
-                }
-            }
-            if (!participant.ready) {
-                RequirementNotice(participant)
             }
         }
     }
 }
 
-/** Aviso visible de lo que falta. Sin región en vivo: es parte de la tarjeta, no un evento. */
+/** Barra fija abajo: todas las sesiones y las estadísticas. */
 @Composable
-private fun RequirementNotice(participant: Participant) {
-    Column(
-        modifier = Modifier
-            .padding(top = EmotvSpacing.Xs)
-            .fillMaxWidth()
-            .clip(EmotvShapes.Md)
-            .background(EmotvColors.WarningSoft)
-            .drawBehind {
-                drawRect(EmotvColors.Warning, size = Size(3.dp.toPx(), size.height))
-            }
-            .padding(start = EmotvSpacing.Sm + 3.dp, end = EmotvSpacing.Sm)
-            .padding(vertical = EmotvSpacing.Sm),
-        verticalArrangement = Arrangement.spacedBy(EmotvSpacing.Xxs),
-    ) {
-        Text(
-            text = stringResource(R.string.dashboard_requirements_title),
-            style = EmotvType.BodySmStrong,
-            color = EmotvColors.Ink,
-        )
-        requirementLines(participant).forEach {
-            Text(text = it, style = EmotvType.BodySm, color = EmotvColors.Charcoal)
-        }
-        Text(
-            text = stringResource(R.string.dashboard_missing_where),
-            style = EmotvType.Caption,
-            color = EmotvColors.Slate,
-        )
-    }
-}
-
-/** Botón principal fijo abajo, con una línea que explica por qué está deshabilitado. */
-@Composable
-private fun StartBar(availability: StartAvailability, onStartSession: (Participant) -> Unit) {
-    val explanation = when (availability) {
-        StartAvailability.NoParticipants -> stringResource(R.string.dashboard_start_no_participants)
-        StartAvailability.NothingSelected -> stringResource(R.string.dashboard_start_select)
-        is StartAvailability.Ready ->
-            stringResource(R.string.dashboard_start_ready, availability.participant.code)
-        is StartAvailability.Blocked -> stringResource(
-            R.string.dashboard_start_blocked,
-            availability.participant.code,
-            requirementLines(availability.participant).joinToString(" "),
-        )
-    }
+private fun NavigationBar(actions: DashboardActions) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -558,95 +391,28 @@ private fun StartBar(availability: StartAvailability, onStartSession: (Participa
             .padding(horizontal = EmotvSpacing.Md, vertical = EmotvSpacing.Sm),
         contentAlignment = Alignment.Center,
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .widthIn(max = ContentMaxWidth)
                 .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(EmotvSpacing.Xs),
+            horizontalArrangement = Arrangement.spacedBy(EmotvSpacing.Sm),
         ) {
-            Text(
-                text = explanation,
-                style = EmotvType.BodySm,
-                color = if (availability is StartAvailability.Blocked) EmotvColors.Warning else EmotvColors.Charcoal,
-                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-            )
-            PrimaryButton(
-                text = stringResource(R.string.dashboard_start),
-                onClick = {
-                    if (availability is StartAvailability.Ready) onStartSession(availability.participant)
-                },
-                enabled = availability is StartAvailability.Ready,
+            SecondaryButton(
+                text = stringResource(R.string.dashboard_nav_sessions),
+                onClick = actions.onOpenSessions,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag(DashboardTags.START),
+                    .weight(1f)
+                    .testTag(DashboardTags.SESSIONS),
+            )
+            SecondaryButton(
+                text = stringResource(R.string.dashboard_nav_statistics),
+                onClick = actions.onOpenStatistics,
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag(DashboardTags.STATISTICS),
             )
         }
     }
-}
-
-@Composable
-private fun SessionStateChip(state: SessionState) {
-    val (label, tone) = when (state) {
-        SessionState.InProgress -> R.string.dashboard_state_in_progress to ChipTone.InProgress
-        SessionState.Completed -> R.string.dashboard_state_completed to ChipTone.Success
-        // Una sesión cancelada no es un error: chip neutro (DESIGN.md).
-        SessionState.Cancelled -> R.string.dashboard_state_cancelled to ChipTone.Neutral
-        SessionState.Created -> R.string.dashboard_state_created to ChipTone.Neutral
-        SessionState.Recognized -> R.string.dashboard_state_recognized to ChipTone.Neutral
-        SessionState.Unknown -> R.string.dashboard_state_unknown to ChipTone.Neutral
-    }
-    StatusChip(text = stringResource(label), tone = tone)
-}
-
-@Composable
-private fun participantMeta(participant: Participant): String {
-    val kind = stringResource(
-        when (participant.kind) {
-            ParticipantKind.Adult -> R.string.dashboard_kind_adult
-            ParticipantKind.Child -> R.string.dashboard_kind_child
-            ParticipantKind.Unknown -> R.string.dashboard_kind_unknown
-        },
-    )
-    val age = participant.ageYears?.let { pluralStringResource(R.plurals.dashboard_age_years, it, it) }
-        ?: stringResource(R.string.dashboard_age_missing)
-    return "$kind · $age"
-}
-
-/** Protocolo y, si la sesión guiada sigue en curso, su fase. */
-@Composable
-private fun sessionDetail(session: SessionSummary): String? {
-    val phase = session.guidedPhase
-        ?.takeIf { session.state == SessionState.InProgress }
-        ?.let { stringResource(phaseLabel(it)) }
-    return listOfNotNull(session.protocolName, phase).joinToString(" · ").ifEmpty { null }
-}
-
-/** Textos del servidor; si no llegaron, los del aplicativo según `missing`. */
-@Composable
-private fun requirementLines(participant: Participant): List<String> {
-    if (participant.warnings.isNotEmpty()) return participant.warnings
-    val missing = participant.missing.ifEmpty { listOf(MissingRequirement.Other) }
-    return missing.map { stringResource(missingLabel(it)) }
-}
-
-private fun missingLabel(requirement: MissingRequirement): Int = when (requirement) {
-    MissingRequirement.Participation -> R.string.dashboard_missing_participation
-    MissingRequirement.Camera -> R.string.dashboard_missing_camera
-    MissingRequirement.ChildAssent -> R.string.dashboard_missing_child_assent
-    MissingRequirement.Revoked -> R.string.dashboard_missing_revoked
-    MissingRequirement.Age -> R.string.dashboard_missing_age
-    MissingRequirement.Other -> R.string.dashboard_missing_other
-}
-
-private fun phaseLabel(phase: GuidedPhase): Int = when (phase) {
-    GuidedPhase.Confirmation -> R.string.dashboard_phase_confirmation
-    GuidedPhase.PreQuestionnaire -> R.string.dashboard_phase_pre_questionnaire
-    GuidedPhase.BeforeAnalyzer -> R.string.dashboard_phase_before_analyzer
-    GuidedPhase.Calibration -> R.string.dashboard_phase_calibration
-    GuidedPhase.Stimuli -> R.string.dashboard_phase_stimuli
-    GuidedPhase.PostQuestionnaire -> R.string.dashboard_phase_post_questionnaire
-    GuidedPhase.Finished -> R.string.dashboard_phase_finished
-    GuidedPhase.Stopped -> R.string.dashboard_phase_stopped
 }
 
 private fun formatTime(instant: Instant, zone: ZoneId): String = instant.atZone(zone).format(TimeFormatter)

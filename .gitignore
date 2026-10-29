@@ -15,3 +15,10 @@
 local.properties
 CLAUDE.md
 DESIGN.md
+# Firma de la versión final: nunca en el repositorio.
+keystore.properties
+*.jks
+*.keystore
+# Estado local de Android Studio y Claude Code.
+/.idea/deviceManager.xml
+/.idea/claudeCodeTabState.xml

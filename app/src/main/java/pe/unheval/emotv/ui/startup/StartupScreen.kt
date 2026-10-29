@@ -20,8 +20,12 @@ import pe.unheval.emotv.ui.components.PrimaryButton
 import pe.unheval.emotv.ui.theme.EmotvColors
 import pe.unheval.emotv.ui.theme.EmotvType
 
+/**
+ * [serverUrl] solo se pasa en la versión de depuración, para saber a qué dirección intenta
+ * conectarse el aplicativo cuando no hay conexión.
+ */
 @Composable
-fun StartupScreen(state: StartupUiState, onRetry: () -> Unit) {
+fun StartupScreen(state: StartupUiState, onRetry: () -> Unit, serverUrl: String? = null) {
     FormScreen {
         EmotvLogo(modifier = Modifier.align(Alignment.CenterHorizontally))
         PageTitle(
@@ -71,6 +75,13 @@ fun StartupScreen(state: StartupUiState, onRetry: () -> Unit) {
                 tone = CalloutTone.Warning,
                 onRetry = onRetry,
                 retryLabel = stringResource(R.string.startup_check_again),
+            )
+        }
+        if (serverUrl != null && (state == StartupUiState.Offline || state == StartupUiState.ServerError)) {
+            Text(
+                text = stringResource(R.string.startup_server_url, serverUrl),
+                style = EmotvType.Caption,
+                color = EmotvColors.Steel,
             )
         }
     }

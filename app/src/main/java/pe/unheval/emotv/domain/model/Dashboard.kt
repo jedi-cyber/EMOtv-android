@@ -4,67 +4,47 @@ import java.time.Instant
 import java.time.LocalDate
 
 /**
- * Resumen de `GET /mobile/summary`: solo datos de la cuenta que inició sesión.
- * Ningún modelo tiene el nombre de un participante; se identifican por su código.
+ * Resumen de `GET /mobile/summary`: las sesiones que la cuenta ya ve en la web (del Docente,
+ * también las de su grupo). Las personas evaluadas no se registran: cada sesión se identifica
+ * por su código.
  */
 data class DashboardSummary(
     val user: AuthUser,
     val date: LocalDate,
     val todaySessions: List<SessionSummary>,
-    val participants: List<Participant>,
-)
-
-data class Participant(
-    val id: String,
-    val code: String,
-    val kind: ParticipantKind,
-    /** `null` si se registró sin edad (`missing` incluye [MissingRequirement.Age]). */
-    val ageYears: Int?,
-    /** Con `false` el servidor no permite iniciar una sesión. */
-    val ready: Boolean,
-    val missing: List<MissingRequirement>,
-    /** Textos del servidor que explican lo que falta, listos para mostrar. */
-    val warnings: List<String>,
-    val lastSession: SessionSummary?,
+    val recentSessions: List<SessionSummary>,
+    /** Del Docente: reportes que esperan su revisión. */
+    val pendingReviews: Int,
 )
 
 data class SessionSummary(
     val id: String,
+    /** `null` solo en sesiones anteriores a la revisión 3 del contrato. */
+    val code: String?,
     val startedAt: Instant,
     val state: SessionState,
-    val guidedPhase: GuidedPhase?,
-    val participantId: String,
-    val participantCode: String,
+    val audience: SessionAudience,
     val protocolName: String?,
+    /** `false` en las sesiones de los usuarios del grupo del Docente. */
+    val mine: Boolean,
+    /** Estado del reporte vigente; `null` si la sesión no tiene reporte. */
+    val reportStatus: ReportStatus?,
 )
 
-enum class ParticipantKind(val apiValue: String) {
-    Adult("adult"),
-    Child("child"),
+/** Con quién fue la sesión (`audience`). */
+enum class SessionAudience(val apiValue: String) {
+    Own("propia"),
+    Adult("adulto"),
+    Child("infantil"),
     Unknown(""),
     ;
 
     companion object {
-        fun fromApi(value: String) = entries.firstOrNull { it.apiValue == value } ?: Unknown
+        fun fromApi(value: String?) = entries.firstOrNull { it.apiValue == value } ?: Unknown
     }
 }
 
-/** Valores de `missing`. */
-enum class MissingRequirement(val apiValue: String) {
-    Participation("participation"),
-    Camera("camera"),
-    ChildAssent("child_assent"),
-    Revoked("revoked"),
-    Age("age"),
-    Other(""),
-    ;
-
-    companion object {
-        fun fromApi(value: String) = entries.firstOrNull { it.apiValue == value } ?: Other
-    }
-}
-
-/** `state` de una sesión. `created` y `recognized` solo aparecen en sesiones propias de la web. */
+/** `state` de una sesión. `created` y `recognized` aparecen en sesiones de actividades de la web. */
 enum class SessionState(val apiValue: String) {
     InProgress("in_progress"),
     Completed("completed"),
@@ -74,24 +54,9 @@ enum class SessionState(val apiValue: String) {
     Unknown(""),
     ;
 
+    val finished: Boolean get() = this == Completed || this == Cancelled
+
     companion object {
         fun fromApi(value: String) = entries.firstOrNull { it.apiValue == value } ?: Unknown
-    }
-}
-
-/** Fases de la sesión guiada (docs/mobile-api.md). */
-enum class GuidedPhase(val apiValue: String) {
-    Confirmation("confirmation"),
-    PreQuestionnaire("pre_questionnaire"),
-    BeforeAnalyzer("before_analyzer"),
-    Calibration("calibration"),
-    Stimuli("stimuli"),
-    PostQuestionnaire("post_questionnaire"),
-    Finished("finished"),
-    Stopped("stopped"),
-    ;
-
-    companion object {
-        fun fromApi(value: String?) = entries.firstOrNull { it.apiValue == value }
     }
 }

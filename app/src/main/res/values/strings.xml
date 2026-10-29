@@ -16,6 +16,8 @@
     <string name="startup_update_title">Actualiza EMOtv</string>
     <string name="startup_update_body">Esta versión (%1$s) ya no es compatible con el servidor. Instala la versión %2$s o una más reciente para continuar.</string>
     <string name="startup_check_again">Volver a comprobar</string>
+    <!-- Solo en la versión de depuración. -->
+    <string name="startup_server_url">Servidor: %1$s</string>
 
     <!-- Inicio de sesión -->
     <string name="login_title">Iniciar sesión</string>
@@ -48,15 +50,6 @@
     <string name="password_change_body">Ingresa a la web de EMOtv, cambia tu contraseña y luego vuelve a iniciar sesión aquí con la contraseña nueva.</string>
     <string name="password_change_back">Volver a iniciar sesión</string>
 
-    <!-- PIN -->
-    <string name="pin_title">Define tu PIN</string>
-    <string name="pin_subtitle">La tablet lo pedirá para salir del modo sesión. Usa de 4 a 6 dígitos que solo tú conozcas.</string>
-    <string name="pin_label">PIN</string>
-    <string name="pin_confirm_label">Repite el PIN</string>
-    <string name="pin_error_length">El PIN debe tener de 4 a 6 dígitos.</string>
-    <string name="pin_error_mismatch">Los dos PIN no coinciden.</string>
-    <string name="pin_submit">Guardar PIN</string>
-
     <!-- Dashboard -->
     <string name="dashboard_section">Inicio</string>
     <!-- La API no envía el nombre de la cuenta: saludo sin nombre, nunca con la parte del correo. -->
@@ -65,12 +58,6 @@
     <string name="dashboard_account">Cuenta</string>
     <string name="dashboard_account_menu">Menú de la cuenta, %1$s</string>
     <string name="dashboard_signed_in_as">Sesión iniciada como %1$s</string>
-    <string name="dashboard_loading">Cargando el resumen del día…</string>
-    <string name="dashboard_refresh">Actualizar</string>
-    <string name="dashboard_error_network">No hay conexión con el servidor</string>
-    <string name="dashboard_error_network_body">Revisa la conexión a internet de la tablet y desliza hacia abajo para actualizar.</string>
-    <string name="dashboard_error_generic">No se pudo cargar el resumen</string>
-    <string name="dashboard_error_generic_body">Vuelve a intentarlo en un momento.</string>
     <string name="dashboard_error_stale">Se muestra el último resumen cargado.</string>
 
     <string name="dashboard_today_title">Sesiones de hoy</string>
@@ -84,29 +71,11 @@
     <string name="dashboard_chart_description">Gráfico de sesiones de hoy por hora: %1$s en total, entre las %2$s y las %3$s. La hora con más sesiones es las %4$s.</string>
     <string name="dashboard_hour">%1$02d:00</string>
 
-    <string name="dashboard_participants_title">Participantes</string>
-    <string name="dashboard_participants_hint">Elige un participante para iniciar una sesión con él o ella.</string>
-    <string name="dashboard_participants_empty">Todavía no tienes participantes registrados. Regístralos en la web de EMOtv y actualiza esta pantalla.</string>
-    <string name="dashboard_kind_adult">Adulto</string>
-    <string name="dashboard_kind_child">Niño o niña</string>
-    <string name="dashboard_kind_unknown">Participante</string>
-    <plurals name="dashboard_age_years">
-        <item quantity="one">%d año</item>
-        <item quantity="many">%d años</item>
-        <item quantity="other">%d años</item>
-    </plurals>
-    <string name="dashboard_age_missing">Sin edad registrada</string>
-    <string name="dashboard_last_session">Última sesión: %1$s</string>
-    <string name="dashboard_no_sessions">Aún no tiene sesiones.</string>
-    <string name="dashboard_requirements_title">No se puede iniciar una sesión</string>
-
-    <string name="dashboard_missing_participation">Falta la autorización de participación.</string>
-    <string name="dashboard_missing_camera">Falta la autorización para usar la cámara.</string>
-    <string name="dashboard_missing_child_assent">Falta el asentimiento del niño o la niña.</string>
-    <string name="dashboard_missing_revoked">Se retiró una autorización.</string>
-    <string name="dashboard_missing_age">Falta registrar la edad.</string>
-    <string name="dashboard_missing_other">Falta un requisito.</string>
-    <string name="dashboard_missing_where">Eso se registra en la web de EMOtv.</string>
+    <string name="dashboard_recent_title">Sesiones recientes</string>
+    <string name="dashboard_recent_hint">Cada sesión se identifica solo por su código. Toca una para ver su detalle y su reporte.</string>
+    <string name="dashboard_recent_empty">Todavía no tienes sesiones.</string>
+    <string name="dashboard_session_no_code">Sesión sin código</string>
+    <string name="dashboard_no_protocol">Sin protocolo</string>
 
     <string name="dashboard_state_in_progress">En curso</string>
     <string name="dashboard_state_completed">Completada</string>
@@ -114,28 +83,160 @@
     <string name="dashboard_state_created">Creada en la web</string>
     <string name="dashboard_state_recognized">Registrada en la web</string>
     <string name="dashboard_state_unknown">Sin estado</string>
-    <string name="dashboard_phase_confirmation">Confirmación</string>
-    <string name="dashboard_phase_pre_questionnaire">Cuestionario previo</string>
-    <string name="dashboard_phase_before_analyzer">Imagen abstracta inicial</string>
-    <string name="dashboard_phase_calibration">Calibración</string>
-    <string name="dashboard_phase_stimuli">Estímulos</string>
-    <string name="dashboard_phase_post_questionnaire">Cuestionario posterior</string>
-    <string name="dashboard_phase_finished">Finalizada</string>
-    <string name="dashboard_phase_stopped">Interrumpida</string>
 
-    <string name="dashboard_start">Iniciar sesión con un participante</string>
-    <string name="dashboard_start_no_participants">Necesitas al menos un participante registrado en la web.</string>
-    <string name="dashboard_start_select">Elige un participante de la lista.</string>
-    <string name="dashboard_start_ready">Se iniciará la sesión con %1$s.</string>
-    <string name="dashboard_start_blocked">No se puede iniciar una sesión con %1$s: %2$s</string>
+    <!-- Con quién es la sesión (`audience`) -->
+    <string name="audience_own">Conmigo</string>
+    <string name="audience_adult">Un adulto</string>
+    <string name="audience_child">Un niño o niña</string>
 
-    <string name="dashboard_web_title">Participantes, protocolos y cuestionarios se gestionan en la web</string>
-    <string name="dashboard_web_body">Para registrar o editar participantes, sus autorizaciones, protocolos o cuestionarios, ingresa a la web de EMOtv.</string>
+    <!-- Inicio: accesos y pendientes -->
+    <string name="dashboard_nav_sessions">Todas las sesiones</string>
+    <string name="dashboard_nav_statistics">Estadísticas</string>
+    <plurals name="dashboard_pending_count">
+        <item quantity="one">Tienes %d reporte por revisar</item>
+        <item quantity="many">Tienes %d reportes por revisar</item>
+        <item quantity="other">Tienes %d reportes por revisar</item>
+    </plurals>
+    <string name="dashboard_pending_body">Los usuarios de tu grupo los enviaron a revisión.</string>
+    <string name="dashboard_pending_action">Ver pendientes</string>
+    <string name="dashboard_web_title">Las sesiones se conducen en la web</string>
+    <string name="dashboard_web_body">Para conducir una sesión, usa el Analizador en la web de EMOtv. Aquí revisas sesiones, reportes y estadísticas; ninguna imagen sale del teléfono.</string>
 
-    <!-- Inicio de sesión con participante (pendiente) -->
-    <string name="session_start_title">Iniciar sesión</string>
-    <string name="session_start_subtitle">Participante %1$s</string>
-    <string name="session_start_pending">El modo sesión todavía no está disponible</string>
-    <string name="session_start_pending_body">La elección del protocolo y la sesión bloqueada para el participante se agregan en la siguiente etapa del aplicativo.</string>
-    <string name="session_start_back">Volver al inicio</string>
+    <!-- Común -->
+    <string name="action_back">Volver</string>
+    <string name="common_loading">Cargando…</string>
+    <string name="common_refresh">Actualizar</string>
+    <string name="error_network">No hay conexión con el servidor</string>
+    <string name="error_network_body">Revisa la conexión a internet y vuelve a intentarlo.</string>
+    <string name="error_generic">No se pudo cargar la información</string>
+    <string name="error_generic_body">Vuelve a intentarlo en un momento.</string>
+    <string name="session_from_group">De tu grupo</string>
+    <string name="session_started_at">Empezó el %1$s</string>
+
+    <!-- Estado del reporte (`report_status`) -->
+    <string name="report_status_draft">Reporte en borrador</string>
+    <string name="report_status_submitted">Reporte en revisión</string>
+    <string name="report_status_changes_requested">Reporte con observaciones</string>
+    <string name="report_status_approved">Reporte aprobado</string>
+    <string name="report_status_unknown">Reporte</string>
+    <string name="report_status_none">Sin reporte</string>
+
+    <!-- Expresiones estimadas: se nombran, nunca se colorean ni se valoran -->
+    <string name="expression_neutral">Neutral</string>
+    <string name="expression_happiness">Felicidad</string>
+    <string name="expression_surprise">Sorpresa</string>
+    <string name="expression_sadness">Tristeza</string>
+    <string name="expression_anger">Enojo</string>
+    <string name="expression_disgust">Desagrado</string>
+    <string name="expression_fear">Miedo</string>
+    <string name="expression_contempt">Desprecio</string>
+    <string name="estimates_notice">Las expresiones son estimaciones de un modelo automático sobre el rostro visible. No son una evaluación ni indican lo que la persona sentía.</string>
+
+    <!-- Lista de sesiones -->
+    <string name="sessions_title">Sesiones</string>
+    <string name="sessions_subtitle">Las sesiones que puedes ver, de la más reciente a la más antigua. Cada una se identifica solo por su código.</string>
+    <string name="sessions_empty">Todavía no hay sesiones.</string>
+
+    <!-- Detalle de una sesión -->
+    <string name="detail_title">Sesión %1$s</string>
+    <string name="detail_report_title">Reporte</string>
+    <string name="detail_report_open">Ver el reporte</string>
+    <string name="detail_report_start">Empezar el reporte</string>
+    <string name="detail_report_none">Esta sesión todavía no tiene reporte.</string>
+    <string name="detail_report_none_other">Quien condujo la sesión todavía no empezó su reporte.</string>
+    <string name="detail_report_not_finished">El reporte se redacta cuando la sesión termina.</string>
+    <string name="detail_metrics_title">Métricas descriptivas</string>
+    <string name="detail_metrics_emotional">Estímulos emocionales</string>
+    <string name="detail_metrics_abstract">Imágenes abstractas</string>
+    <string name="detail_metrics_expected">Expresión esperada: %1$s</string>
+    <string name="detail_metrics_matched">La expresión estimada coincidió</string>
+    <string name="detail_metrics_not_matched">La expresión estimada no coincidió</string>
+    <string name="detail_metrics_not_counted">Sin captura de buena calidad para comparar</string>
+    <string name="detail_metrics_skipped">Se saltó</string>
+    <string name="detail_metrics_said">Dijo ver: %1$s</string>
+    <string name="detail_metrics_said_none">No se registró lo que dijo ver.</string>
+    <string name="detail_timeline_title">Línea de tiempo</string>
+    <string name="detail_timeline_empty">No hay registros en la línea de tiempo.</string>
+    <string name="detail_timeline_time">%1$d:%2$02d</string>
+    <string name="timeline_questionnaire_pre">Cuestionario previo: %1$s</string>
+    <string name="timeline_questionnaire_post">Cuestionario posterior: %1$s</string>
+    <string name="timeline_answer">%1$s: %2$s</string>
+    <string name="timeline_no_answer">sin respuesta</string>
+    <string name="timeline_stimulus">Estímulo: %1$s</string>
+    <string name="timeline_stimulus_skipped">Estímulo saltado: %1$s</string>
+    <string name="timeline_capture">Expresión estimada: %1$s</string>
+    <string name="timeline_capture_flagged">Captura con un problema de calidad; no cuenta en las métricas</string>
+    <string name="timeline_capture_no_face">Captura sin rostro detectado</string>
+    <string name="timeline_said">Dijo ver: %1$s</string>
+    <string name="timeline_marker_distracted">Se distrajo</string>
+    <string name="timeline_marker_laughed">Se rió</string>
+    <string name="timeline_marker_asked_to_stop">Pidió parar</string>
+    <string name="timeline_marker_cried">Lloró</string>
+    <string name="timeline_marker_note">Nota: %1$s</string>
+    <string name="timeline_marker_other">Marca</string>
+
+    <!-- Reporte -->
+    <string name="report_title">Reporte de %1$s</string>
+    <string name="report_version">Versión %1$d</string>
+    <string name="report_narrative_title">Texto del reporte</string>
+    <string name="report_narrative_label">Escribe el reporte</string>
+    <string name="report_narrative_empty">Todavía no tiene texto.</string>
+    <string name="report_save">Guardar</string>
+    <string name="report_submit">Enviar a revisión</string>
+    <string name="report_close">Cerrar el reporte</string>
+    <string name="report_draft_hint">Cuando el texto esté listo, envíalo a tu Docente.</string>
+    <string name="report_draft_hint_docente">Al cerrarlo, el reporte queda aprobado.</string>
+    <string name="report_changes_hint">Tu Docente dejó observaciones. Corrige el texto y vuelve a enviarlo.</string>
+    <string name="report_submitted_hint">En revisión de tu Docente.</string>
+    <string name="report_approved_hint">Aprobado. Para corregirlo hace falta una versión nueva, que se crea en la web.</string>
+    <string name="report_not_current">Esta versión fue reemplazada por una más reciente.</string>
+    <string name="report_comments_title">Comentarios del Docente</string>
+    <string name="report_comments_empty">Sin comentarios.</string>
+    <string name="report_review_title">Revisión</string>
+    <string name="report_review_hint">Comenta lo que haga falta y luego devuelve o aprueba el reporte.</string>
+    <string name="report_section_label">Sección del comentario</string>
+    <string name="report_comment_label">Comentario</string>
+    <string name="report_comment_send">Comentar</string>
+    <string name="report_return">Devolver con observaciones</string>
+    <string name="report_approve">Aprobar</string>
+    <string name="report_section_timeline">Línea de tiempo</string>
+    <string name="report_section_metrics">Métricas</string>
+    <string name="report_section_questionnaires">Cuestionarios</string>
+    <string name="report_section_narrative">Texto del reporte</string>
+    <string name="report_section_general">General</string>
+
+    <!-- Pendientes del Docente -->
+    <string name="reviews_title">Pendientes</string>
+    <string name="reviews_subtitle">Reportes que los usuarios de tu grupo enviaron a revisión.</string>
+    <string name="reviews_empty">No tienes reportes por revisar.</string>
+
+    <!-- Estadísticas agregadas -->
+    <string name="statistics_title">Estadísticas</string>
+    <string name="statistics_scope_mine">Mis sesiones</string>
+    <string name="statistics_scope_group">Mi grupo</string>
+    <string name="statistics_sessions_title">Sesiones</string>
+    <string name="statistics_total">Total</string>
+    <string name="statistics_completed">Completas</string>
+    <string name="statistics_interrupted">Interrumpidas</string>
+    <string name="statistics_average">Duración media</string>
+    <string name="statistics_duration">%1$d min %2$02d s</string>
+    <string name="statistics_no_value">Sin datos</string>
+    <string name="statistics_expressions_title">Expresiones estimadas</string>
+    <string name="statistics_expressions_hint">Porcentaje de las capturas de buena calidad: %1$d contadas y %2$d excluidas.</string>
+    <string name="statistics_percent">%1$s %%</string>
+    <string name="statistics_of_total">%1$d de %2$d</string>
+    <string name="statistics_matched">Coincidió</string>
+    <plurals name="statistics_captures_in_sessions">
+        <item quantity="one">%1$d captura en</item>
+        <item quantity="many">%1$d capturas en</item>
+        <item quantity="other">%1$d capturas en</item>
+    </plurals>
+    <plurals name="statistics_in_sessions">
+        <item quantity="one">%1$d sesión</item>
+        <item quantity="many">%1$d sesiones</item>
+        <item quantity="other">%1$d sesiones</item>
+    </plurals>
+    <string name="statistics_coincidence_title">Coincidencia con la expresión esperada</string>
+    <string name="statistics_coincidence_body">En %1$d de %2$d estímulos emocionales comparados, la expresión estimada coincidió con la esperada.</string>
+    <string name="statistics_coincidence_none">Ningún estímulo emocional tuvo una captura de buena calidad para comparar.</string>
 </resources>

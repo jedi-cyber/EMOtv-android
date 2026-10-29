@@ -20,11 +20,11 @@ class StartupViewModelTest {
     @get:Rule
     val mainRule = MainDispatcherRule()
 
-    private val graph = TestGraph(mainRule.dispatcher)
+    private val graph = TestGraph()
 
     private fun viewModel(appVersion: String = "1.0.0") = StartupViewModel(
         checkServerStatus = CheckServerStatusUseCase(graph.statusRepository, appVersion),
-        restoreSession = RestoreSessionUseCase(graph.authRepository, graph.pinRepository),
+        restoreSession = RestoreSessionUseCase(graph.authRepository),
         appVersionName = appVersion,
     )
 
@@ -87,9 +87,8 @@ class StartupViewModelTest {
     }
 
     @Test
-    fun `sesión guardada con PIN se renueva y va al inicio`() = runTest {
+    fun `sesión guardada se renueva y va al inicio`() = runTest {
         graph.refreshTokenStore.value = "guardado"
-        graph.pinRepository.savePin("1234")
 
         val vm = viewModel()
 
@@ -98,15 +97,6 @@ class StartupViewModelTest {
         // El token de renovación cambia en cada renovación.
         assertEquals("renovado", graph.refreshTokenStore.value)
         assertEquals("acceso-renovado", graph.tokenHolder.accessToken)
-    }
-
-    @Test
-    fun `sesión guardada sin PIN pide definirlo`() = runTest {
-        graph.refreshTokenStore.value = "guardado"
-
-        val vm = viewModel()
-
-        assertEquals(StartupUiState.Ready(StartDestination.PinSetup), vm.uiState.value)
     }
 
     @Test

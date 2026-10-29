@@ -26,6 +26,19 @@ require(releaseApiUrl.startsWith("https://")) {
     "emotv.apiUrl.release debe usar HTTPS"
 }
 
+// Firma de la versión final: keystore.properties y el archivo .jks no se versionan (ver README.md).
+//   storeFile=C:/ruta/fuera/del/repositorio/emotv-release.jks
+//   storePassword=...
+//   keyAlias=emotv
+//   keyPassword=...
+// Sin ese archivo, assembleRelease genera un APK sin firmar.
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use(::load)
+}
+val hasReleaseSigning = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+    .all { !keystoreProperties.getProperty(it).isNullOrBlank() }
+
 android {
     namespace = "pe.unheval.emotv"
     compileSdk {
@@ -36,11 +49,22 @@ android {
         applicationId = "pe.unheval.emotv"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
+        versionCode = 2
         // Se compara con min_app_version (x.y.z) de GET /mobile/status.
-        versionName = "1.0.0"
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -49,9 +73,12 @@ android {
         }
         release {
             buildConfigField("String", "API_BASE_URL", "\"$releaseApiUrl\"")
+            // R8: minifica, quita código sin usar y elimina las llamadas a Log
+            // (reglas en src/main/keepRules/rules.keep).
             optimization {
-                enable = false
+                enable = true
             }
+            if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {

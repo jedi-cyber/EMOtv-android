@@ -35,7 +35,14 @@ object ErrorCodes {
     const val ROLE_NOT_ALLOWED = "role_not_allowed"
     const val PASSWORD_CHANGE_REQUIRED = "password_change_required"
     const val TOO_MANY_ATTEMPTS = "too_many_attempts"
+    const val FORBIDDEN = "forbidden"
+    const val NOT_FOUND = "not_found"
+    const val CONFLICT = "conflict"
+    const val INVALID = "invalid"
 }
+
+/** Código de error de `/mobile`, si lo hay. */
+val AppError.serverCode: String? get() = (this as? AppError.Server)?.code
 
 /** El token de acceso venció o falta: se puede renovar con el token de renovación. */
 fun AppError.isAccessRejected(): Boolean =
