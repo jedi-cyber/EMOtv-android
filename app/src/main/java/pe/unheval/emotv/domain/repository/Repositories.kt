@@ -1,18 +1,17 @@
 package pe.unheval.emotv.domain.repository
 
 import kotlinx.coroutines.flow.StateFlow
-import pe.unheval.emotv.domain.model.Answer
 import pe.unheval.emotv.domain.model.AuthUser
 import pe.unheval.emotv.domain.model.DashboardSummary
-import pe.unheval.emotv.domain.model.FrameResult
-import pe.unheval.emotv.domain.model.GuidedPhase
 import pe.unheval.emotv.domain.model.Outcome
-import pe.unheval.emotv.domain.model.QuestionnaireMoment
+import pe.unheval.emotv.domain.model.PendingReview
+import pe.unheval.emotv.domain.model.Report
+import pe.unheval.emotv.domain.model.ReportSection
 import pe.unheval.emotv.domain.model.ServerStatus
-import pe.unheval.emotv.domain.model.SessionPlan
-import pe.unheval.emotv.domain.model.SessionStep
-import pe.unheval.emotv.domain.model.StartedSession
-import pe.unheval.emotv.domain.model.StopReason
+import pe.unheval.emotv.domain.model.SessionDetail
+import pe.unheval.emotv.domain.model.SessionStatistics
+import pe.unheval.emotv.domain.model.SessionSummary
+import pe.unheval.emotv.domain.model.StatisticsScope
 import java.time.LocalDate
 
 interface StatusRepository {
@@ -46,61 +45,47 @@ interface AuthRepository {
     suspend fun logout()
 }
 
+/*
+ * Ningún dato de las sesiones se guarda en disco: las respuestas llevan
+ * `Cache-Control: no-store` y viven en memoria mientras se muestran.
+ */
+
 interface SummaryRepository {
-    /** Resumen del día [date] según el desfase horario del dispositivo. No se guarda en disco. */
+    /** Resumen del día [date] según el desfase horario del dispositivo. */
     suspend fun fetchSummary(date: LocalDate, utcOffsetMinutes: Int): Outcome<DashboardSummary>
 }
 
-interface PinRepository {
-    suspend fun hasPin(): Boolean
-    suspend fun savePin(pin: String)
-    suspend fun verifyPin(pin: String): Boolean
-    suspend fun clear()
-}
-
-/**
- * Sesión con o sin protocolo. Nada se guarda en disco: las respuestas, los estímulos y los
- * cuadros viven en memoria mientras se usan.
- */
+/** Solo consulta: las sesiones se conducen en la web. */
 interface SessionRepository {
-    /**
-     * Crea la sesión con la confirmación ya marcada (`authorization_confirmed: true`). Solo
-     * se llama después de que quien conduce marcó la casilla.
-     */
-    suspend fun start(plan: SessionPlan): Outcome<StartedSession>
+    /** Las sesiones que la cuenta puede ver, de la más reciente a la más antigua. */
+    suspend fun list(): Outcome<List<SessionSummary>>
 
-    suspend fun next(sessionId: String): Outcome<SessionStep>
-
-    /** Respuestas de la persona evaluada (`entry_mode: participant`). No se devuelven. */
-    suspend fun submitQuestionnaire(
-        sessionId: String,
-        moment: QuestionnaireMoment,
-        answers: Map<String, Answer>,
-    ): Outcome<GuidedPhase?>
-
-    suspend fun advance(sessionId: String): Outcome<GuidedPhase?>
-
-    suspend fun startCalibration(sessionId: String): Outcome<GuidedPhase?>
-
-    /**
-     * Envía un cuadro JPEG para que el servidor lo analice en memoria y lo descarte.
-     * Al terminar, haya salido bien o no, borra el contenido de [jpeg].
-     */
-    suspend fun sendFrame(sessionId: String, jpeg: ByteArray): Outcome<FrameResult>
-
-    /** Termina una sesión sin protocolo (fase `live`). */
-    suspend fun finish(sessionId: String): Outcome<GuidedPhase?>
-
-    suspend fun stop(sessionId: String, reason: StopReason): Outcome<GuidedPhase?>
-
-    /** Imagen del estímulo, en memoria (sin caché de disco). */
-    suspend fun stimulusImage(imageUrl: String): Outcome<ByteArray>
+    suspend fun detail(sessionId: String): Outcome<SessionDetail>
 }
 
-/**
- * Cámara frontal. Entrega un cuadro JPEG en memoria, o `null` si la cámara aún no tiene
- * uno. Nunca escribe imágenes en el almacenamiento.
- */
-fun interface FrameSource {
-    suspend fun capture(jpegQuality: Int): ByteArray?
+/** Cada acción devuelve el reporte actualizado, con lo que la cuenta puede hacer ahora. */
+interface ReportRepository {
+    /** Reporte vigente de la sesión, o `null` si todavía no tiene. */
+    suspend fun forSession(sessionId: String): Outcome<Report?>
+
+    suspend fun create(sessionId: String): Outcome<Report>
+
+    suspend fun get(reportId: String): Outcome<Report>
+
+    suspend fun edit(reportId: String, narrative: String): Outcome<Report>
+
+    suspend fun submit(reportId: String): Outcome<Report>
+
+    suspend fun comment(reportId: String, section: ReportSection, text: String): Outcome<Report>
+
+    suspend fun returnWithComments(reportId: String): Outcome<Report>
+
+    suspend fun approve(reportId: String): Outcome<Report>
+
+    /** Del Docente: reportes de su grupo que esperan su revisión. */
+    suspend fun pendingReviews(): Outcome<List<PendingReview>>
+}
+
+interface StatisticsRepository {
+    suspend fun fetch(scope: StatisticsScope): Outcome<SessionStatistics>
 }

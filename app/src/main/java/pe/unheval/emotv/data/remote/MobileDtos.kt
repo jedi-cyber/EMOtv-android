@@ -3,7 +3,6 @@ package pe.unheval.emotv.data.remote
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
 
 @Serializable
 data class StatusDto(
@@ -17,6 +16,8 @@ data class StatusDto(
 data class ServicesDto(
     val login: Boolean = false,
     val sessions: Boolean = false,
+    val reports: Boolean = false,
+    val statistics: Boolean = false,
 )
 
 @Serializable
@@ -53,10 +54,10 @@ data class SummaryDto(
     val date: String,
     @SerialName("today_sessions") val todaySessions: List<SessionDto> = emptyList(),
     @SerialName("recent_sessions") val recentSessions: List<SessionDto> = emptyList(),
-    val protocols: List<ProtocolDto> = emptyList(),
-    val audiences: List<AudienceDto> = emptyList(),
+    @SerialName("pending_reviews") val pendingReviews: Int = 0,
 )
 
+/** `SessionSummary`; en `GET /mobile/reviews` trae además `report_id`. */
 @Serializable
 data class SessionDto(
     val id: String,
@@ -65,120 +66,183 @@ data class SessionDto(
     @SerialName("started_at") val startedAt: String,
     val state: String,
     val audience: String? = null,
-    @SerialName("guided_phase") val guidedPhase: String? = null,
     @SerialName("protocol_name") val protocolName: String? = null,
+    val mine: Boolean = true,
+    @SerialName("report_status") val reportStatus: String? = null,
+    @SerialName("report_id") val reportId: String? = null,
+)
+
+// --- Detalle de la sesión ----------------------------------------------------------------
+
+@Serializable
+data class SessionDetailDto(
+    val session: SessionDto,
+    val timeline: TimelineDto = TimelineDto(),
+    val metrics: MetricsDto = MetricsDto(),
 )
 
 @Serializable
-data class ProtocolDto(
-    val id: String,
-    val name: String,
-    val version: Int = 1,
-    @SerialName("for_children") val forChildren: Boolean = false,
-    val audience: String? = null,
-    @SerialName("step_count") val stepCount: Int = 0,
-    @SerialName("has_pre_questionnaire") val hasPreQuestionnaire: Boolean = false,
-    @SerialName("has_post_questionnaire") val hasPostQuestionnaire: Boolean = false,
-    val confirmation: String = "",
+data class TimelineDto(
+    @SerialName("duration_seconds") val durationSeconds: Double = 0.0,
+    val lanes: LanesDto = LanesDto(),
 )
 
-/** Opción de «¿Con quién es la sesión?» para empezar sin protocolo. */
+/** Tiempos en segundos desde el inicio de la sesión. `heart_rate` está reservado y se ignora. */
 @Serializable
-data class AudienceDto(val value: String, val confirmation: String = "")
-
-/** Con protocolo va `protocol_id`; sin protocolo, `session_type`. */
-@Serializable
-data class StartSessionRequestDto(
-    @SerialName("protocol_id") val protocolId: String? = null,
-    @SerialName("session_type") val sessionType: String? = null,
-    @SerialName("authorization_confirmed") val authorizationConfirmed: Boolean,
+data class LanesDto(
+    val questionnaires: List<QuestionnaireLaneDto> = emptyList(),
+    val stimuli: List<StimulusLaneDto> = emptyList(),
+    val captures: List<CaptureLaneDto> = emptyList(),
+    val said: List<SaidLaneDto> = emptyList(),
+    val markers: List<MarkerLaneDto> = emptyList(),
 )
 
 @Serializable
-data class StartSessionDto(
-    @SerialName("session_id") val sessionId: String,
-    val code: String,
-    val phase: String,
-    val audience: String,
-    @SerialName("has_protocol") val hasProtocol: Boolean = true,
-    val reminder: String? = null,
-)
-
-/** `GET .../next`: siempre trae todos los campos; los que no aplican, en `null`. */
-@Serializable
-data class SessionStepDto(
-    @SerialName("session_id") val sessionId: String,
-    val code: String? = null,
-    val phase: String,
-    @SerialName("stop_reason") val stopReason: String? = null,
-    @SerialName("send_frames") val sendFrames: Boolean = false,
-    @SerialName("frame_interval_ms") val frameIntervalMs: Long? = null,
-    @SerialName("capture_status") val captureStatus: List<String> = emptyList(),
-    val questionnaire: QuestionnaireDto? = null,
-    val calibration: CalibrationDto? = null,
-    val stimulus: StimulusDto? = null,
-    @SerialName("step_count") val stepCount: Int? = null,
-)
-
-@Serializable
-data class QuestionnaireDto(
-    val moment: String,
-    val id: String,
-    val version: Int = 1,
+data class QuestionnaireLaneDto(
+    val time: Double? = null,
+    val moment: String = "",
     val title: String = "",
-    val instructions: String? = null,
-    val answered: Boolean = false,
-    val questions: List<QuestionDto> = emptyList(),
+    val answers: List<AnswerDto> = emptyList(),
+)
+
+/** `answer` puede ser un número, un texto, una lista o `null` (sin respuesta). */
+@Serializable
+data class AnswerDto(
+    val question: String = "",
+    val answer: JsonElement? = null,
 )
 
 @Serializable
-data class QuestionDto(
-    val id: String,
-    val kind: String,
-    val text: String,
-    val required: Boolean = false,
-    val options: List<String> = emptyList(),
-    @SerialName("scale_points") val scalePoints: Int? = null,
-    @SerialName("min_label") val minLabel: String? = null,
-    @SerialName("max_label") val maxLabel: String? = null,
+data class StimulusLaneDto(
+    @SerialName("step_index") val stepIndex: Int = 0,
+    val title: String = "",
+    val start: Double? = null,
+    val skipped: Boolean = false,
 )
 
 @Serializable
-data class CalibrationDto(
-    val state: String,
-    val progress: Float = 0f,
-    val notice: String? = null,
+data class CaptureLaneDto(
+    val time: Double? = null,
+    /** Expresión **estimada** por el modelo; `null` si no se detectó un rostro. */
+    val emotion: String? = null,
+    val quality: String = "",
 )
 
-/** `title` existe en la API, pero no se muestra a la persona evaluada ni se guarda. */
 @Serializable
-data class StimulusDto(
-    @SerialName("step_index") val stepIndex: Int,
-    val kind: String? = null,
-    @SerialName("exposure_seconds") val exposureSeconds: Double? = null,
-    @SerialName("remaining_seconds") val remainingSeconds: Double? = null,
-    @SerialName("image_url") val imageUrl: String? = null,
+data class SaidLaneDto(
+    val time: Double? = null,
+    val title: String = "",
+    val text: String = "",
+)
+
+@Serializable
+data class MarkerLaneDto(
+    val time: Double? = null,
+    val kind: String = "",
+    val note: String? = null,
+)
+
+@Serializable
+data class MetricsDto(
+    val emotional: List<EmotionalMetricDto> = emptyList(),
+    val abstract: List<AbstractMetricDto> = emptyList(),
+    val totals: TotalsDto = TotalsDto(),
     @SerialName("abstract_notice") val abstractNotice: String? = null,
-    @SerialName("records_verbal_response") val recordsVerbalResponse: Boolean = false,
 )
 
 @Serializable
-data class QuestionnaireAnswersDto(
-    val answers: JsonObject,
-    @SerialName("entry_mode") val entryMode: String,
+data class EmotionalMetricDto(
+    @SerialName("step_index") val stepIndex: Int = 0,
+    val title: String = "",
+    val skipped: Boolean = false,
+    @SerialName("expected_expression") val expectedExpression: String? = null,
+    val counted: Boolean = false,
+    @SerialName("matches_expected") val matchesExpected: Boolean? = null,
 )
 
 @Serializable
-data class PhaseDto(val phase: String? = null)
-
-@Serializable
-data class FrameResultDto(
-    val phase: String? = null,
-    @SerialName("capture_status") val captureStatus: List<String> = emptyList(),
+data class AbstractMetricDto(
+    @SerialName("step_index") val stepIndex: Int = 0,
+    val title: String = "",
+    val skipped: Boolean = false,
+    val said: String? = null,
 )
 
 @Serializable
-data class StopRequestDto(val reason: String)
+data class TotalsDto(val sentence: String = "")
+
+// --- Reporte ----------------------------------------------------------------------------
+
+/** `Report`. La línea de tiempo y las métricas que también trae se ignoran: se ven en el detalle de la sesión. */
+@Serializable
+data class ReportDto(
+    val id: String,
+    val version: Int = 1,
+    val status: String,
+    val current: Boolean = true,
+    val narrative: String = "",
+    @SerialName("session_code") val sessionCode: String? = null,
+    @SerialName("estimates_notice") val estimatesNotice: String = "",
+    @SerialName("abstract_notice") val abstractNotice: String? = null,
+    @SerialName("authored_by_me") val authoredByMe: Boolean = false,
+    @SerialName("requires_review") val requiresReview: Boolean = true,
+    @SerialName("can_edit") val canEdit: Boolean = false,
+    @SerialName("can_review") val canReview: Boolean = false,
+    val comments: List<CommentDto> = emptyList(),
+)
+
+@Serializable
+data class CommentDto(
+    val id: String,
+    val section: String = "general",
+    val text: String,
+    @SerialName("created_at") val createdAt: String,
+)
+
+@Serializable
+data class NarrativeRequestDto(val narrative: String)
+
+@Serializable
+data class CommentRequestDto(val section: String, val text: String)
+
+// --- Estadísticas -----------------------------------------------------------------------
+
+/** Cuentan sesiones, no personas; el servidor no envía filas por usuario. */
+@Serializable
+data class StatisticsDto(
+    val scope: String = "mine",
+    val notice: String = "",
+    @SerialName("few_sessions_notice") val fewSessionsNotice: String? = null,
+    val sessions: StatisticsSessionsDto = StatisticsSessionsDto(),
+    val expressions: StatisticsExpressionsDto = StatisticsExpressionsDto(),
+    val coincidence: CoincidenceDto = CoincidenceDto(),
+)
+
+@Serializable
+data class StatisticsSessionsDto(
+    val total: Int = 0,
+    val completed: Int = 0,
+    val interrupted: Int = 0,
+    @SerialName("average_duration_seconds") val averageDurationSeconds: Double? = null,
+)
+
+@Serializable
+data class StatisticsExpressionsDto(
+    @SerialName("counted_captures") val countedCaptures: Int = 0,
+    @SerialName("excluded_captures") val excludedCaptures: Int = 0,
+    val rows: List<ExpressionRowDto> = emptyList(),
+)
+
+@Serializable
+data class ExpressionRowDto(
+    val expression: String,
+    val captures: Int = 0,
+    val percent: Double = 0.0,
+    val sessions: Int = 0,
+)
+
+@Serializable
+data class CoincidenceDto(val compared: Int = 0, val matched: Int = 0)
 
 /** `detail` es un objeto `{code, message}` o, en errores de esquema de FastAPI, una lista. */
 @Serializable

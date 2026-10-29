@@ -10,13 +10,14 @@ import org.junit.Rule
 import org.junit.Test
 import pe.unheval.emotv.data.remote.ApiJson
 import pe.unheval.emotv.data.remote.SummaryDto
-import pe.unheval.emotv.domain.model.GuidedPhase
+import pe.unheval.emotv.domain.model.ReportStatus
 import pe.unheval.emotv.domain.model.SessionAudience
 import pe.unheval.emotv.domain.model.SessionState
 import pe.unheval.emotv.domain.usecase.LoadDashboardUseCase
 import pe.unheval.emotv.domain.usecase.LogoutUseCase
 import pe.unheval.emotv.testing.MainDispatcherRule
 import pe.unheval.emotv.testing.TestGraph
+import pe.unheval.emotv.testing.docenteUser
 import pe.unheval.emotv.testing.mobileError
 import pe.unheval.emotv.testing.networkError
 import pe.unheval.emotv.testing.sessionDto
@@ -31,7 +32,7 @@ class DashboardViewModelTest {
     @get:Rule
     val mainRule = MainDispatcherRule()
 
-    private val graph = TestGraph(mainRule.dispatcher)
+    private val graph = TestGraph()
 
     // Perú (UTC-5), 10:00 hora local del 23 de octubre.
     private val zone = ZoneOffset.ofHours(-5)
@@ -39,14 +40,13 @@ class DashboardViewModelTest {
 
     private fun viewModel() = DashboardViewModel(
         loadDashboard = LoadDashboardUseCase(graph.summaryRepository, clock),
-        logout = LogoutUseCase(graph.authRepository, graph.pinRepository),
+        logout = LogoutUseCase(graph.authRepository),
         zone = zone,
     )
 
     @Before
     fun signIn() = runTest {
         graph.authRepository.login("usuario1@example.com", "valor-de-prueba")
-        graph.pinRepository.savePin("1234")
     }
 
     @Test
@@ -64,12 +64,14 @@ class DashboardViewModelTest {
         assertEquals(listOf("S-4F7K2Q", "S-9QW3ZD"), content.recentSessions.map { it.code })
         assertEquals(SessionAudience.Own, content.recentSessions.last().audience)
         assertNull(content.recentSessions.last().protocolName)
+        assertEquals(ReportStatus.Draft, content.recentSessions.last().reportStatus)
+        assertFalse(content.isDocente)
 
         val today = content.todaySessions.single()
         assertEquals("S-4F7K2Q", today.code)
         assertEquals(SessionAudience.Adult, today.audience)
         assertEquals(SessionState.InProgress, today.state)
-        assertEquals(GuidedPhase.Stimuli, today.guidedPhase)
+        assertNull(today.reportStatus)
         // 14:04 UTC son las 09:04 en Perú.
         assertEquals(1, content.activity.counts[9])
         assertEquals(1, content.activity.total)
@@ -162,11 +164,10 @@ class DashboardViewModelTest {
         assertNull(state.content)
         assertNull(graph.refreshTokenStore.value)
         assertNull(graph.tokenHolder.accessToken)
-        assertFalse(graph.pinRepository.hasPin())
     }
 
     @Test
-    fun `cerrar sesión borra todo dato en memoria, los tokens y el PIN`() = runTest {
+    fun `cerrar sesión borra todo dato en memoria y los tokens`() = runTest {
         val vm = viewModel()
 
         vm.logOut()
@@ -179,7 +180,6 @@ class DashboardViewModelTest {
         assertNull(graph.tokenHolder.accessToken)
         assertNull(graph.refreshTokenStore.value)
         assertNull(graph.authRepository.currentUser.value)
-        assertFalse(graph.pinRepository.hasPin())
     }
 
     @Test
@@ -205,26 +205,17 @@ class DashboardViewModelTest {
 
     @Test
     fun `el resumen de la documentación se interpreta sin datos de más`() = runTest {
-        // Ejemplo de docs/mobile-api.md (revisión 3) con un campo extra que el aplicativo ignora.
+        // Ejemplo de docs/mobile-api.md (revisión 4) con un campo extra que el aplicativo ignora.
         val json = """
             {"user": {"id": "user-1", "email": "usuario1@example.com", "role": "student", "role_name": "Usuario"},
              "date": "2026-10-26",
              "today_sessions": [],
              "recent_sessions": [
                {"id": "221e2a72", "code": "S-4F7K2Q", "started_at": "2026-10-26T14:04:10.922662+00:00",
-                "state": "in_progress", "audience": "adulto", "guided_phase": "stimuli",
-                "protocol_name": "Secuencia móvil", "nombre": "no se usa"}
+                "state": "completed", "audience": "adulto", "protocol_name": "Secuencia móvil",
+                "mine": true, "report_status": "submitted", "nombre": "no se usa"}
              ],
-             "protocols": [
-               {"id": "98128891", "name": "Secuencia móvil", "version": 1, "for_children": false, "audience": "adulto",
-                "step_count": 1, "has_pre_questionnaire": true, "has_post_questionnaire": false,
-                "confirmation": "Es una sesión mía o cuento con la autorización firmada de la persona adulta"}
-             ],
-             "audiences": [
-               {"value": "propia", "confirmation": "Es una sesión mía o cuento con la autorización firmada de la persona adulta"},
-               {"value": "adulto", "confirmation": "Es una sesión mía o cuento con la autorización firmada de la persona adulta"},
-               {"value": "infantil", "confirmation": "Su tutor autorizó por escrito, está presente y el niño aceptó participar"}
-             ]}
+             "pending_reviews": 0}
         """.trimIndent()
         val dto = ApiJson.decodeFromString(SummaryDto.serializer(), json)
         graph.api.summary = { _, _ -> dto }
@@ -233,7 +224,28 @@ class DashboardViewModelTest {
 
         assertEquals("S-4F7K2Q", session.code)
         assertEquals(SessionAudience.Adult, session.audience)
-        assertEquals(GuidedPhase.Stimuli, session.guidedPhase)
+        assertEquals(ReportStatus.Submitted, session.reportStatus)
+    }
+
+    @Test
+    fun `el Docente ve cuántos reportes esperan su revisión`() = runTest {
+        graph.api.summary = { _, _ -> summaryDto(user = docenteUser, pendingReviews = 2) }
+
+        val content = assertNotNull(viewModel().uiState.value.content)
+
+        assertTrue(content.isDocente)
+        assertEquals(2, content.pendingReviews)
+    }
+
+    @Test
+    fun `al volver a la pantalla se actualiza, la primera vez no`() = runTest {
+        val vm = viewModel()
+
+        vm.onResume()
+        assertEquals(1, graph.api.summaryRequests.size)
+
+        vm.onResume()
+        assertEquals(2, graph.api.summaryRequests.size)
     }
 
     private fun <T> assertNotNull(value: T?): T {

@@ -2,20 +2,26 @@ package pe.unheval.emotv
 
 import android.content.Context
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import pe.unheval.emotv.data.local.EncryptedRefreshTokenStore
 import pe.unheval.emotv.data.local.KeystoreTokenCipher
-import pe.unheval.emotv.data.local.PinHashStore
+import pe.unheval.emotv.data.local.removeLegacyPinHash
 import pe.unheval.emotv.data.remote.AccessTokenHolder
 import pe.unheval.emotv.data.remote.EmotvApi
 import pe.unheval.emotv.data.remote.NetworkFactory
 import pe.unheval.emotv.data.repository.AuthRepositoryImpl
-import pe.unheval.emotv.data.repository.PinRepositoryImpl
+import pe.unheval.emotv.data.repository.ReportRepositoryImpl
 import pe.unheval.emotv.data.repository.SessionRepositoryImpl
+import pe.unheval.emotv.data.repository.StatisticsRepositoryImpl
 import pe.unheval.emotv.data.repository.StatusRepositoryImpl
 import pe.unheval.emotv.data.repository.SummaryRepositoryImpl
 import pe.unheval.emotv.domain.repository.AuthRepository
-import pe.unheval.emotv.domain.repository.PinRepository
+import pe.unheval.emotv.domain.repository.ReportRepository
 import pe.unheval.emotv.domain.repository.SessionRepository
+import pe.unheval.emotv.domain.repository.StatisticsRepository
 import pe.unheval.emotv.domain.repository.StatusRepository
 import pe.unheval.emotv.domain.repository.SummaryRepository
 import pe.unheval.emotv.domain.usecase.CheckServerStatusUseCase
@@ -23,11 +29,9 @@ import pe.unheval.emotv.domain.usecase.LoadDashboardUseCase
 import pe.unheval.emotv.domain.usecase.LoginUseCase
 import pe.unheval.emotv.domain.usecase.LogoutUseCase
 import pe.unheval.emotv.domain.usecase.RestoreSessionUseCase
-import pe.unheval.emotv.domain.usecase.SetPinUseCase
-import pe.unheval.emotv.domain.usecase.VerifyPinUseCase
 import java.time.Clock
 
-// Solo guarda el token de renovación cifrado y el hash del PIN. Excluido de las copias de seguridad.
+// Solo guarda el token de renovación cifrado. Excluido de las copias de seguridad.
 private val Context.deviceStore by preferencesDataStore(name = "emotv_device")
 
 /** Dependencias del aplicativo, creadas a mano para no agregar un framework de inyección. */
@@ -45,17 +49,19 @@ class AppContainer(context: Context) {
         tokenHolder = tokenHolder,
     )
 
-    private val pinRepository: PinRepository = PinRepositoryImpl(PinHashStore(appContext.deviceStore))
-
     private val summaryRepository: SummaryRepository = SummaryRepositoryImpl(api, authRepository)
 
     val sessionRepository: SessionRepository = SessionRepositoryImpl(api, authRepository)
+    val reportRepository: ReportRepository = ReportRepositoryImpl(api, authRepository)
+    val statisticsRepository: StatisticsRepository = StatisticsRepositoryImpl(api, authRepository)
 
     val checkServerStatus = CheckServerStatusUseCase(statusRepository, BuildConfig.VERSION_NAME)
-    val restoreSession = RestoreSessionUseCase(authRepository, pinRepository)
-    val login = LoginUseCase(authRepository, pinRepository)
-    val logout = LogoutUseCase(authRepository, pinRepository)
-    val setPin = SetPinUseCase(pinRepository)
-    val verifyPin = VerifyPinUseCase(pinRepository)
+    val restoreSession = RestoreSessionUseCase(authRepository)
+    val login = LoginUseCase(authRepository)
+    val logout = LogoutUseCase(authRepository)
     val loadDashboard = LoadDashboardUseCase(summaryRepository, Clock.systemDefaultZone())
+
+    init {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch { appContext.deviceStore.removeLegacyPinHash() }
+    }
 }

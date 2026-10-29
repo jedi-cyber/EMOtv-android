@@ -5,4 +5,6 @@ data class ServerStatus(
     val minAppVersion: String,
     val loginAvailable: Boolean,
     val sessionsAvailable: Boolean,
+    val reportsAvailable: Boolean,
+    val statisticsAvailable: Boolean,
 )

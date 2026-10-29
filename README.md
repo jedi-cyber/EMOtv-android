@@ -1,32 +1,34 @@
 # EMOtv Android
 
 Aplicativo Android nativo (Kotlin y Jetpack Compose) de EMOtv, proyecto de innovación de
-la Facultad de Psicología de la UNHEVAL. Complementa al sistema web: quien conduce la
-sesión (Usuario o Docente) inicia sesión, revisa el resumen del día e inicia una sesión con
-un protocolo o sin ninguno. La tablet pasa a una pantalla bloqueada que muestra el
-cuestionario y los estímulos (o solo la cámara en curso, sin protocolo) mientras la cámara
-frontal envía cuadros al servidor. Las personas evaluadas no se registran: cada sesión lleva
-un código aleatorio que se muestra al empezar y al terminar.
+la Facultad de Psicología de la UNHEVAL. Complementa al sistema web para consultar lo ya
+registrado: el Usuario o el Docente inicia sesión y ve el resumen del día, sus sesiones con
+su línea de tiempo y sus métricas, los reportes y las estadísticas agregadas.
 
-El aplicativo no analiza nada: cada cuadro se envía al servidor, que estima la expresión
-facial con modelos locales y lo descarta. EMOtv estima una expresión; no diagnostica.
-Protocolos, cuestionarios y reportes se gestionan en la web. El aplicativo sigue la revisión
-3 del contrato (`docs/mobile-api.md`).
+- El Usuario redacta el reporte de sus sesiones, lo envía a revisión y responde a las
+  observaciones editándolo y enviándolo de nuevo.
+- El Docente ve los reportes de su grupo que esperan su revisión. Los comenta, los
+  devuelve con observaciones o los aprueba.
+
+**El aplicativo no conduce sesiones ni usa la cámara.** Las sesiones se conducen solo
+desde el Analizador de la web, así que ninguna imagen de una persona pasa por el
+dispositivo. Las personas evaluadas no se registran: cada sesión se identifica por su código
+aleatorio. EMOtv estima una expresión; no diagnostica. El aplicativo sigue la revisión 4 del
+contrato (`docs/mobile-api.md`).
 
 ## Requisitos
 
 - Android Studio con el JDK incluido, o un JDK 17 o posterior.
-- Una tablet o un emulador con Android 8.0 (API 26) o posterior y cámara frontal.
-- El servidor de EMOtv en funcionamiento, en la misma red que la tablet.
+- Un teléfono, una tablet o un emulador con Android 8.0 (API 26) o posterior.
+- El servidor de EMOtv en funcionamiento, en la misma red que el dispositivo.
 
 ## Permisos
 
-El aplicativo pide solo dos permisos:
+El aplicativo pide un solo permiso:
 
 | Permiso | Para qué |
 | --- | --- |
 | `INTERNET` | Comunicarse con el servidor de EMOtv |
-| `CAMERA` | Enviar cuadros de la cámara frontal durante la sesión. Antes de pedirlo, la pantalla de preparación explica para qué se usa |
 
 AndroidX agrega también `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. Es un permiso interno
 del propio aplicativo (nivel de firma): no se le muestra a la persona ni da acceso a nada
@@ -90,9 +92,9 @@ Hay que repetir `adb reverse` cada vez que se reconecta el cable o se reinicia l
 
 ### Por qué el servidor debe ofrecer HTTPS
 
-- Por la tablet pasan la contraseña de quien conduce, sus tokens, las respuestas de los
-  cuestionarios y cuadros del rostro de las personas evaluadas, entre ellas niños. Sin cifrado,
-  cualquier equipo de la misma red wifi puede leerlos o modificarlos.
+- Por el dispositivo pasan la contraseña de la cuenta, sus tokens, las respuestas de los
+  cuestionarios y el texto de los reportes. Sin cifrado, cualquier equipo de la misma red
+  wifi puede leerlos o modificarlos.
 - El servidor, en producción, rechaza toda ruta `/mobile` que no llegue por HTTPS
   (`403 https_required`).
 - La versión final del aplicativo solo permite HTTPS (`network_security_config.xml` no
@@ -124,9 +126,9 @@ Desde la raíz del proyecto (PowerShell):
 ```
 
 Ninguna prueba llama al servidor real. Las pruebas de interfaz incluyen
-`DeviceStorageTest`, que revisa que en el almacenamiento del aplicativo no haya imágenes y
-que cerrar sesión borre el token y el hash del PIN. Conviene ejecutarla también después
-de una sesión de demostración.
+`DeviceStorageTest`, que revisa que en el almacenamiento del aplicativo no haya imágenes,
+que cerrar sesión borre el token y que se borre el hash del PIN de versiones anteriores.
+Conviene ejecutarla también después de una demostración.
 
 ## APK firmado para la demostración
 
@@ -182,12 +184,14 @@ un fallo de esa compilación. Guárdalo junto al APK, pero no lo publiques.
 
 ## Privacidad en el dispositivo
 
-- Ninguna imagen de una persona se guarda: los cuadros de la cámara viven en memoria, se
-  envían una vez y se borran. Sin conexión, la sesión se pausa y no se guardan capturas.
-- En el dispositivo solo quedan el token de renovación, cifrado con una clave del Android
-  Keystore, y el hash del PIN. Ambos se borran al cerrar sesión.
+- Sin cámara: el aplicativo no captura ni recibe imágenes de personas.
+- Los datos de las sesiones, los reportes y las estadísticas viven solo en memoria y se
+  descartan al cerrar la pantalla o la sesión.
+- En el dispositivo solo queda el token de renovación, cifrado con una clave del Android
+  Keystore, y se borra al cerrar sesión. Al abrirse, el aplicativo borra el hash del PIN
+  que guardaban las versiones anteriores.
 - Sin copias de seguridad (`allowBackup="false"` y reglas de exclusión), sin caché de
-  disco HTTP y, en la versión final, con `FLAG_SECURE` en las pantallas con sesiones o el
-  PIN. La versión de depuración permite capturas de pantalla para documentar el proyecto;
-  por eso nunca se usa con personas evaluadas reales.
+  disco HTTP y, en la versión final, con `FLAG_SECURE` en las pantallas con sesiones o
+  reportes. La versión de depuración permite capturas de pantalla para documentar el
+  proyecto; por eso nunca se usa con datos de personas evaluadas reales.
 - Sin SDKs de analítica, publicidad ni reporte de fallos.

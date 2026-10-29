@@ -1,6 +1,8 @@
 package pe.unheval.emotv.data
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.CoroutineScope
@@ -16,18 +18,17 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import pe.unheval.emotv.data.local.EncryptedRefreshTokenStore
 import pe.unheval.emotv.data.local.KeystoreTokenCipher
-import pe.unheval.emotv.data.local.PinHashStore
+import pe.unheval.emotv.data.local.removeLegacyPinHash
 import pe.unheval.emotv.data.remote.AccessTokenHolder
 import pe.unheval.emotv.data.remote.NetworkFactory
 import pe.unheval.emotv.data.repository.AuthRepositoryImpl
-import pe.unheval.emotv.data.repository.PinRepositoryImpl
 import pe.unheval.emotv.domain.usecase.LogoutUseCase
 import java.io.File
 import java.security.KeyStore
 
 /**
  * Comprueba en el dispositivo lo que queda en el almacenamiento del aplicativo: ninguna
- * imagen, y tras cerrar sesión ni el token ni el hash del PIN. Ejecutarla también después
+ * imagen, y tras cerrar sesión ningún token. El hash del PIN de versiones anteriores se borra. Ejecutarla también después
  * de una sesión de demostración sirve para revisar que no quedó nada.
  */
 @RunWith(AndroidJUnit4::class)
@@ -45,12 +46,10 @@ class DeviceStorageTest {
     }
 
     @Test
-    fun cerrarSesionBorraElTokenYElHashDelPin() = runBlocking {
+    fun cerrarSesionBorraElToken() = runBlocking {
         val dataStore = PreferenceDataStoreFactory.create(scope = scope) { storeFile }
         val refreshStore = EncryptedRefreshTokenStore(dataStore, KeystoreTokenCipher(alias = TEST_KEY_ALIAS))
-        val pinStore = PinHashStore(dataStore)
         refreshStore.write("token-de-prueba")
-        pinStore.write("hash-de-prueba")
 
         // Sin token de acceso en memoria, el cierre de sesión no llama al servidor.
         val auth = AuthRepositoryImpl(
@@ -58,12 +57,21 @@ class DeviceStorageTest {
             refreshTokenStore = refreshStore,
             tokenHolder = AccessTokenHolder(),
         )
-        LogoutUseCase(auth, PinRepositoryImpl(pinStore)).invoke()
+        LogoutUseCase(auth).invoke()
 
         assertNull(refreshStore.read())
-        assertNull(pinStore.read())
         val raw = storeFile.readBytes().toString(Charsets.ISO_8859_1)
         assertFalse(raw.contains("refresh_token"))
+    }
+
+    @Test
+    fun seBorraElHashDelPinDeVersionesAnteriores() = runBlocking {
+        val dataStore = PreferenceDataStoreFactory.create(scope = scope) { storeFile }
+        dataStore.edit { it[stringPreferencesKey("pin_hash")] = "hash-de-prueba" }
+
+        dataStore.removeLegacyPinHash()
+
+        val raw = storeFile.readBytes().toString(Charsets.ISO_8859_1)
         assertFalse(raw.contains("pin_hash"))
     }
 

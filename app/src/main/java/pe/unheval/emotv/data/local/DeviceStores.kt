@@ -44,20 +44,10 @@ class EncryptedRefreshTokenStore(
     }
 }
 
-/** Hash del PIN (nunca el PIN). Ver [PinHasher]. */
-class PinHashStore(private val dataStore: DataStore<Preferences>) : ValueStore {
-
-    override suspend fun read(): String? = dataStore.data.first()[KEY]
-
-    override suspend fun write(value: String) {
-        dataStore.edit { it[KEY] = value }
-    }
-
-    override suspend fun clear() {
-        dataStore.edit { it.remove(KEY) }
-    }
-
-    private companion object {
-        val KEY = stringPreferencesKey("pin_hash")
-    }
+/**
+ * Las versiones que conducían sesiones guardaban el hash de un PIN para salir del modo
+ * sesión. Ya no se usa: se borra al iniciar el aplicativo.
+ */
+suspend fun DataStore<Preferences>.removeLegacyPinHash() {
+    edit { it.remove(stringPreferencesKey("pin_hash")) }
 }

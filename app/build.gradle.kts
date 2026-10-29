@@ -49,9 +49,9 @@ android {
         applicationId = "pe.unheval.emotv"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
+        versionCode = 2
         // Se compara con min_app_version (x.y.z) de GET /mobile/status.
-        versionName = "1.0.0"
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -109,10 +109,6 @@ dependencies {
     implementation(libs.retrofit.converter.kotlinx.serialization)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
-    // Cámara frontal: captura en memoria (ImageAnalysis) y vista previa en Compose.
-    implementation(libs.androidx.camera.camera2)
-    implementation(libs.androidx.camera.lifecycle)
-    implementation(libs.androidx.camera.compose)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(platform(libs.androidx.compose.bom))

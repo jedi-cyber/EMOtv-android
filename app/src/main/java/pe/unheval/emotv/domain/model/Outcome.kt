@@ -39,8 +39,6 @@ object ErrorCodes {
     const val NOT_FOUND = "not_found"
     const val CONFLICT = "conflict"
     const val INVALID = "invalid"
-    const val TOO_LARGE = "too_large"
-    const val INVALID_OR_EXPIRED_URL = "invalid_or_expired_url"
 }
 
 /** Código de error de `/mobile`, si lo hay. */

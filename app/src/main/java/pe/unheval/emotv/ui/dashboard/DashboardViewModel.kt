@@ -18,6 +18,7 @@ import pe.unheval.emotv.domain.model.SessionSummary
 import pe.unheval.emotv.domain.model.isSessionEnded
 import pe.unheval.emotv.domain.usecase.LoadDashboardUseCase
 import pe.unheval.emotv.domain.usecase.LogoutUseCase
+import pe.unheval.emotv.domain.usecase.isDocente
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -54,6 +55,9 @@ data class DashboardContent(
     /** Las más recientes primero, con su código. */
     val recentSessions: List<SessionSummary>,
     val activity: HourlyActivity,
+    val isDocente: Boolean = false,
+    /** Del Docente: reportes de su grupo que esperan su revisión. */
+    val pendingReviews: Int = 0,
 )
 
 data class DashboardUiState(
@@ -91,6 +95,13 @@ class DashboardViewModel(
         load()
     }
 
+    private var shown = false
+
+    /** Al volver al inicio (por ejemplo, desde un reporte) se actualiza; la primera vez ya cargó. */
+    fun onResume() {
+        if (shown) refresh() else shown = true
+    }
+
     fun logOut() {
         if (state.value.isLoggingOut || state.value.loggedOut) return
         state.update { it.copy(isLoggingOut = true) }
@@ -121,6 +132,8 @@ class DashboardViewModel(
             todaySessions = summary.todaySessions.sortedBy { it.startedAt },
             recentSessions = summary.recentSessions.sortedByDescending { it.startedAt },
             activity = HourlyActivity.of(summary.todaySessions, zone),
+            isDocente = summary.user.isDocente(),
+            pendingReviews = summary.pendingReviews,
         )
         return copy(isLoading = false, isRefreshing = false, content = content, error = null)
     }

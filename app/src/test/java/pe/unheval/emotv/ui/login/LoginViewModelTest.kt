@@ -18,8 +18,8 @@ class LoginViewModelTest {
     @get:Rule
     val mainRule = MainDispatcherRule()
 
-    private val graph = TestGraph(mainRule.dispatcher)
-    private val vm = LoginViewModel(LoginUseCase(graph.authRepository, graph.pinRepository))
+    private val graph = TestGraph()
+    private val vm = LoginViewModel(LoginUseCase(graph.authRepository))
 
     private fun fillIn(email: String = "usuario1@example.com", password: String = "valor-de-prueba") {
         vm.onEmailChange(email)
@@ -55,22 +55,19 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun `inicio correcto guarda la sesión, pide el PIN y olvida la contraseña`() = runTest {
-        graph.pinRepository.savePin("1234")
+    fun `inicio correcto guarda la sesión, va al inicio y olvida la contraseña`() = runTest {
         fillIn(email = "  usuario1@example.com ")
 
         vm.submit()
 
         val state = vm.uiState.value
-        assertEquals(LoginNavigation.PinSetup, state.navigation)
+        assertEquals(LoginNavigation.Home, state.navigation)
         assertFalse(state.isLoading)
         assertEquals("", state.password)
         assertEquals("usuario1@example.com", graph.api.loginRequests.single().email)
         assertEquals("renovacion-de-prueba", graph.refreshTokenStore.value)
         assertEquals("acceso-de-prueba", graph.tokenHolder.accessToken)
         assertEquals("Usuario", graph.authRepository.currentUser.value?.roleName)
-        // Cada inicio de sesión define un PIN nuevo.
-        assertFalse(graph.pinRepository.hasPin())
 
         vm.onNavigated()
         assertNull(vm.uiState.value.navigation)

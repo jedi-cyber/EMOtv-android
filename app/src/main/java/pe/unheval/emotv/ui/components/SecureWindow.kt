@@ -11,7 +11,7 @@ import java.util.WeakHashMap
 /**
  * Activa `FLAG_SECURE` mientras la pantalla está en composición: impide capturas de
  * pantalla, grabaciones y la vista previa en la lista de aplicaciones recientes.
- * Usar en toda pantalla que muestre sesiones o el PIN.
+ * Usar en toda pantalla que muestre sesiones, reportes o estadísticas.
  *
  * Solo en la versión final. La versión de depuración permite capturas para documentar el
  * proyecto; no se usa con personas evaluadas reales.

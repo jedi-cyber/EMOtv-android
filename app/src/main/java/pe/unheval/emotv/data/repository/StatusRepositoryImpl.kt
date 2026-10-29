@@ -14,6 +14,8 @@ class StatusRepositoryImpl(private val api: EmotvApi) : StatusRepository {
             minAppVersion = dto.minAppVersion,
             loginAvailable = dto.services.login,
             sessionsAvailable = dto.services.sessions,
+            reportsAvailable = dto.services.reports,
+            statisticsAvailable = dto.services.statistics,
         )
     }
 }
