@@ -1,6 +1,5 @@
 package pe.unheval.emotv.ui.statistics
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,12 +10,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import pe.unheval.emotv.R
 import pe.unheval.emotv.domain.model.SessionStatistics
 import pe.unheval.emotv.domain.model.StatisticsScope
+import pe.unheval.emotv.ui.components.BarChart
+import pe.unheval.emotv.ui.components.BarChartRow
 import pe.unheval.emotv.ui.components.Callout
 import pe.unheval.emotv.ui.components.CalloutTone
 import pe.unheval.emotv.ui.components.ContentScreen
@@ -34,11 +36,13 @@ object StatisticsTags {
     const val SCOPE_MINE = "statistics_scope_mine"
     const val SCOPE_GROUP = "statistics_scope_group"
     const val TOTAL = "statistics_total"
+    const val SESSIONS_CHART = "statistics_sessions_chart"
+    const val EXPRESSIONS_CHART = "statistics_expressions_chart"
 }
 
 /**
  * Estadísticas agregadas. Cuentan sesiones, no personas, y no se desglosan por usuario. Las
- * expresiones se nombran como estimadas, sin colores ni valoraciones.
+ * expresiones se nombran como estimadas y se muestran en barras de un solo color, sin valoraciones.
  */
 @Composable
 fun StatisticsScreen(
@@ -108,14 +112,30 @@ private fun SessionsCard(statistics: SessionStatistics) {
         Column {
             Figure(stringResource(R.string.statistics_total), statistics.total.toString(), Modifier.testTag(StatisticsTags.TOTAL))
             HorizontalDivider(color = EmotvColors.Hairline)
-            Figure(stringResource(R.string.statistics_completed), statistics.completed.toString())
-            HorizontalDivider(color = EmotvColors.Hairline)
-            Figure(stringResource(R.string.statistics_interrupted), statistics.interrupted.toString())
-            HorizontalDivider(color = EmotvColors.Hairline)
             val average = statistics.averageDurationSeconds?.roundToInt()?.let {
                 stringResource(R.string.statistics_duration, it / 60, it % 60)
             } ?: stringResource(R.string.statistics_no_value)
             Figure(stringResource(R.string.statistics_average), average)
+        }
+        if (statistics.total > 0) {
+            BarChart(
+                rows = listOf(
+                    BarChartRow(
+                        key = "completed",
+                        label = stringResource(R.string.statistics_completed),
+                        value = statistics.completed.toDouble(),
+                        valueText = stringResource(R.string.statistics_of_total, statistics.completed, statistics.total),
+                    ),
+                    BarChartRow(
+                        key = "interrupted",
+                        label = stringResource(R.string.statistics_interrupted),
+                        value = statistics.interrupted.toDouble(),
+                        valueText = stringResource(R.string.statistics_of_total, statistics.interrupted, statistics.total),
+                    ),
+                ),
+                max = statistics.total.toDouble(),
+                modifier = Modifier.testTag(StatisticsTags.SESSIONS_CHART),
+            )
         }
     }
 }
@@ -144,29 +164,21 @@ private fun ExpressionsCard(statistics: SessionStatistics) {
             style = EmotvType.BodySm,
             color = EmotvColors.Slate,
         )
-        Column {
-            statistics.expressions.forEachIndexed { index, row ->
-                if (index > 0) HorizontalDivider(color = EmotvColors.Hairline)
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = EmotvSpacing.Xs)
-                        .semantics(mergeDescendants = true) {},
-                    verticalArrangement = Arrangement.spacedBy(EmotvSpacing.Xxs),
-                ) {
-                    Text(expressionLabel(row.expression), style = EmotvType.BodySmStrong, color = EmotvColors.Ink)
-                    Text(
-                        text = stringResource(
-                            R.string.statistics_expression_row,
-                            percent.format(row.percent),
-                            row.captures,
-                            row.sessions,
-                        ),
-                        style = EmotvType.Caption,
-                        color = EmotvColors.Charcoal,
+        if (statistics.countedCaptures > 0) {
+            BarChart(
+                rows = statistics.expressions.sortedByDescending { it.percent }.map { row ->
+                    BarChartRow(
+                        key = row.expression,
+                        label = expressionLabel(row.expression),
+                        value = row.percent,
+                        valueText = stringResource(R.string.statistics_percent, percent.format(row.percent)),
+                        detail = pluralStringResource(R.plurals.statistics_captures_in_sessions, row.captures, row.captures) +
+                            " " + pluralStringResource(R.plurals.statistics_in_sessions, row.sessions, row.sessions),
                     )
-                }
-            }
+                },
+                max = 100.0,
+                modifier = Modifier.testTag(StatisticsTags.EXPRESSIONS_CHART),
+            )
         }
     }
 }
@@ -175,6 +187,19 @@ private fun ExpressionsCard(statistics: SessionStatistics) {
 private fun CoincidenceCard(statistics: SessionStatistics) {
     EmotvCard {
         CardTitle(stringResource(R.string.statistics_coincidence_title))
+        if (statistics.compared > 0) {
+            BarChart(
+                rows = listOf(
+                    BarChartRow(
+                        key = "matched",
+                        label = stringResource(R.string.statistics_matched),
+                        value = statistics.matched.toDouble(),
+                        valueText = stringResource(R.string.statistics_of_total, statistics.matched, statistics.compared),
+                    ),
+                ),
+                max = statistics.compared.toDouble(),
+            )
+        }
         Text(
             text = if (statistics.compared == 0) {
                 stringResource(R.string.statistics_coincidence_none)

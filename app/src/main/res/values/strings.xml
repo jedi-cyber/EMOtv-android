@@ -223,7 +223,19 @@
     <string name="statistics_no_value">Sin datos</string>
     <string name="statistics_expressions_title">Expresiones estimadas</string>
     <string name="statistics_expressions_hint">Porcentaje de las capturas de buena calidad: %1$d contadas y %2$d excluidas.</string>
-    <string name="statistics_expression_row">%1$s %% · %2$d capturas · %3$d sesiones</string>
+    <string name="statistics_percent">%1$s %%</string>
+    <string name="statistics_of_total">%1$d de %2$d</string>
+    <string name="statistics_matched">Coincidió</string>
+    <plurals name="statistics_captures_in_sessions">
+        <item quantity="one">%1$d captura en</item>
+        <item quantity="many">%1$d capturas en</item>
+        <item quantity="other">%1$d capturas en</item>
+    </plurals>
+    <plurals name="statistics_in_sessions">
+        <item quantity="one">%1$d sesión</item>
+        <item quantity="many">%1$d sesiones</item>
+        <item quantity="other">%1$d sesiones</item>
+    </plurals>
     <string name="statistics_coincidence_title">Coincidencia con la expresión esperada</string>
     <string name="statistics_coincidence_body">En %1$d de %2$d estímulos emocionales comparados, la expresión estimada coincidió con la esperada.</string>
     <string name="statistics_coincidence_none">Ningún estímulo emocional tuvo una captura de buena calidad para comparar.</string>
