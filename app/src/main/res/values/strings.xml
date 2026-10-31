@@ -239,4 +239,33 @@
     <string name="statistics_coincidence_title">Coincidencia con la expresión esperada</string>
     <string name="statistics_coincidence_body">En %1$d de %2$d estímulos emocionales comparados, la expresión estimada coincidió con la esperada.</string>
     <string name="statistics_coincidence_none">Ningún estímulo emocional tuvo una captura de buena calidad para comparar.</string>
+    <!-- Práctica de expresiones: describe el ejercicio, no valora a la persona -->
+    <string name="practice_title">Práctica de expresiones</string>
+    <string name="practice_by_target">Por expresión pedida</string>
+    <string name="practice_by_protocol">Por protocolo</string>
+    <string name="practice_chart_hint">Ejercicios en que se logró la expresión pedida, de los que llegaron a su final.</string>
+    <string name="practice_of_applied">%1$d de %2$d</string>
+    <string name="practice_average">Tiempo promedio hasta lograrla: %1$s s</string>
+    <plurals name="practice_skipped">
+        <item quantity="one">%1$d saltado</item>
+        <item quantity="many">%1$d saltados</item>
+        <item quantity="other">%1$d saltados</item>
+    </plurals>
+    <plurals name="practice_stopped">
+        <item quantity="one">%1$d sin terminar al detener la sesión</item>
+        <item quantity="many">%1$d sin terminar al detener la sesión</item>
+        <item quantity="other">%1$d sin terminar al detener la sesión</item>
+    </plurals>
+    <plurals name="statistics_practice_sessions">
+        <item quantity="one">%1$d sesión con ejercicios de práctica.</item>
+        <item quantity="many">%1$d sesiones con ejercicios de práctica.</item>
+        <item quantity="other">%1$d sesiones con ejercicios de práctica.</item>
+    </plurals>
+    <string name="timeline_practice">Práctica de %1$s: %2$s</string>
+    <string name="practice_outcome_achieved">logró la expresión pedida</string>
+    <string name="practice_outcome_achieved_in">logró la expresión pedida en %1$s s</string>
+    <string name="practice_outcome_timed_out">terminó el tiempo</string>
+    <string name="practice_outcome_skipped">se saltó</string>
+    <string name="practice_outcome_stopped">la sesión se detuvo</string>
+    <string name="practice_outcome_none">sin resultado registrado</string>
 </resources>

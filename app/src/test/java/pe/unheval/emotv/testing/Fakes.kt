@@ -27,6 +27,10 @@ import pe.unheval.emotv.data.remote.ExpressionRowDto
 import pe.unheval.emotv.data.remote.LoginRequestDto
 import pe.unheval.emotv.data.remote.MetricsDto
 import pe.unheval.emotv.data.remote.NarrativeRequestDto
+import pe.unheval.emotv.data.remote.PracticeDto
+import pe.unheval.emotv.data.remote.PracticeExerciseDto
+import pe.unheval.emotv.data.remote.PracticeRowDto
+import pe.unheval.emotv.data.remote.PracticeTotalsDto
 import pe.unheval.emotv.data.remote.RefreshRequestDto
 import pe.unheval.emotv.data.remote.ReportDto
 import pe.unheval.emotv.data.remote.ServicesDto
@@ -34,6 +38,7 @@ import pe.unheval.emotv.data.remote.SessionDetailDto
 import pe.unheval.emotv.data.remote.SessionDto
 import pe.unheval.emotv.data.remote.StatisticsDto
 import pe.unheval.emotv.data.remote.StatisticsExpressionsDto
+import pe.unheval.emotv.data.remote.StatisticsPracticeDto
 import pe.unheval.emotv.data.remote.StatisticsSessionsDto
 import pe.unheval.emotv.data.remote.StatusDto
 import pe.unheval.emotv.data.remote.SummaryDto
@@ -266,9 +271,51 @@ fun summaryDto(
     pendingReviews = pendingReviews,
 )
 
-fun sessionDetailDto(session: SessionDto = sessionDto()) = SessionDetailDto(
+fun sessionDetailDto(session: SessionDto = sessionDto(), practice: PracticeDto? = null) = SessionDetailDto(
     session = session,
-    metrics = MetricsDto(totals = TotalsDto(sentence = "Se registraron 3 capturas.")),
+    metrics = MetricsDto(totals = TotalsDto(sentence = "Se registraron 3 capturas."), practice = practice),
+)
+
+const val PRACTICE_NOTICE = "Los modelos de expresión se entrenaron principalmente con rostros de adultos y su " +
+    "precisión con niños no está validada. El resultado describe el ejercicio, no el estado emocional de la persona."
+
+fun practiceTotalsDto(applied: Int = 2, achieved: Int = 1, skipped: Int = 1) = PracticeTotalsDto(
+    exercises = applied + skipped,
+    applied = applied,
+    achieved = achieved,
+    skipped = skipped,
+    averageSecondsToAchieve = 4.5,
+    feedbackVisible = applied,
+    sentence = "Logró la expresión pedida en $achieved de $applied ejercicios.",
+    averageSentence = "Tiempo promedio hasta lograrla: 4,5 s (solo los ejercicios logrados).",
+    feedbackSentence = null,
+)
+
+fun practiceDto() = PracticeDto(
+    exercises = listOf(
+        PracticeExerciseDto(stepIndex = 1, targetExpression = "happiness", outcome = "achieved", secondsToAchieve = 4.5),
+        PracticeExerciseDto(stepIndex = 2, targetExpression = "surprise", outcome = "timed_out"),
+        PracticeExerciseDto(stepIndex = 3, targetExpression = "surprise", outcome = "skipped"),
+    ),
+    totals = practiceTotalsDto(),
+    byTarget = listOf(
+        PracticeRowDto(targetExpression = "happiness", applied = 1, achieved = 1, averageSecondsToAchieve = 4.5),
+        PracticeRowDto(targetExpression = "surprise", applied = 1, achieved = 0, skipped = 1),
+    ),
+    notice = PRACTICE_NOTICE,
+)
+
+fun statisticsPracticeDto() = StatisticsPracticeDto(
+    sessions = 2,
+    totals = practiceTotalsDto(applied = 3, achieved = 2),
+    byProtocol = listOf(
+        PracticeRowDto(familyId = "familia-1", name = "Alegría y sorpresa", sessions = 2, applied = 3, achieved = 2, skipped = 1),
+    ),
+    byTarget = listOf(
+        PracticeRowDto(targetExpression = "happiness", applied = 2, achieved = 2, averageSecondsToAchieve = 3.0),
+        PracticeRowDto(targetExpression = "surprise", applied = 1, achieved = 0, skipped = 1),
+    ),
+    notice = PRACTICE_NOTICE,
 )
 
 fun reportDto(
@@ -293,7 +340,11 @@ fun reportDto(
     comments = comments,
 )
 
-fun statisticsDto(scope: String = "mine", total: Int = 4) = StatisticsDto(
+fun statisticsDto(
+    scope: String = "mine",
+    total: Int = 4,
+    practice: StatisticsPracticeDto? = null,
+) = StatisticsDto(
     scope = scope,
     notice = "Cuentan sesiones, no personas.",
     sessions = StatisticsSessionsDto(
@@ -308,6 +359,7 @@ fun statisticsDto(scope: String = "mine", total: Int = 4) = StatisticsDto(
         rows = listOf(ExpressionRowDto("neutral", captures = 6, percent = 60.0, sessions = 3)),
     ),
     coincidence = CoincidenceDto(compared = 2, matched = 1),
+    practice = practice,
 )
 
 val docenteUser = UserDto(id = "docente-1", email = "docente1@example.com", role = "psychologist", roleName = "Docente")

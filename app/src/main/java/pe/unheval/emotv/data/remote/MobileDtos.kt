@@ -112,12 +112,17 @@ data class AnswerDto(
     val answer: JsonElement? = null,
 )
 
+/** Con `kind` `practice` (4.1) trae además la expresión pedida y el resultado del ejercicio. */
 @Serializable
 data class StimulusLaneDto(
     @SerialName("step_index") val stepIndex: Int = 0,
     val title: String = "",
+    val kind: String = "",
     val start: Double? = null,
     val skipped: Boolean = false,
+    @SerialName("target_expression") val targetExpression: String? = null,
+    val outcome: String? = null,
+    @SerialName("seconds_to_achieve") val secondsToAchieve: Double? = null,
 )
 
 @Serializable
@@ -148,6 +153,8 @@ data class MetricsDto(
     val abstract: List<AbstractMetricDto> = emptyList(),
     val totals: TotalsDto = TotalsDto(),
     @SerialName("abstract_notice") val abstractNotice: String? = null,
+    /** Desde 4.1; `null` (o ausente en un servidor anterior) si el protocolo no tenía ejercicios. */
+    val practice: PracticeDto? = null,
 )
 
 @Serializable
@@ -170,6 +177,53 @@ data class AbstractMetricDto(
 
 @Serializable
 data class TotalsDto(val sentence: String = "")
+
+/** `Practice` (4.1): ejercicios de práctica de una sesión. Describen el ejercicio; no valoran a nadie. */
+@Serializable
+data class PracticeDto(
+    val exercises: List<PracticeExerciseDto> = emptyList(),
+    val totals: PracticeTotalsDto = PracticeTotalsDto(),
+    @SerialName("by_target") val byTarget: List<PracticeRowDto> = emptyList(),
+    val notice: String = "",
+)
+
+@Serializable
+data class PracticeExerciseDto(
+    @SerialName("step_index") val stepIndex: Int = 0,
+    @SerialName("target_expression") val targetExpression: String = "",
+    val outcome: String? = null,
+    @SerialName("seconds_to_achieve") val secondsToAchieve: Double? = null,
+)
+
+/** `PracticeTotals`; `exercises` y `not_reached` solo vienen en el detalle de una sesión. */
+@Serializable
+data class PracticeTotalsDto(
+    val exercises: Int = 0,
+    val applied: Int = 0,
+    val achieved: Int = 0,
+    val skipped: Int = 0,
+    val stopped: Int = 0,
+    @SerialName("not_reached") val notReached: Int = 0,
+    @SerialName("average_seconds_to_achieve") val averageSecondsToAchieve: Double? = null,
+    @SerialName("feedback_visible") val feedbackVisible: Int = 0,
+    val sentence: String = "",
+    @SerialName("average_sentence") val averageSentence: String? = null,
+    @SerialName("feedback_sentence") val feedbackSentence: String? = null,
+)
+
+/** `PracticeRow`: por expresión pedida (`target_expression`) o, en estadísticas, por protocolo (`name`). */
+@Serializable
+data class PracticeRowDto(
+    @SerialName("target_expression") val targetExpression: String? = null,
+    @SerialName("family_id") val familyId: String? = null,
+    val name: String? = null,
+    val sessions: Int = 0,
+    val applied: Int = 0,
+    val achieved: Int = 0,
+    val skipped: Int = 0,
+    val stopped: Int = 0,
+    @SerialName("average_seconds_to_achieve") val averageSecondsToAchieve: Double? = null,
+)
 
 // --- Reporte ----------------------------------------------------------------------------
 
@@ -216,6 +270,8 @@ data class StatisticsDto(
     val sessions: StatisticsSessionsDto = StatisticsSessionsDto(),
     val expressions: StatisticsExpressionsDto = StatisticsExpressionsDto(),
     val coincidence: CoincidenceDto = CoincidenceDto(),
+    /** Desde 4.1, aparte de `coincidence`; `null` (o ausente) si ninguna sesión tuvo ejercicios. */
+    val practice: StatisticsPracticeDto? = null,
 )
 
 @Serializable
@@ -243,6 +299,16 @@ data class ExpressionRowDto(
 
 @Serializable
 data class CoincidenceDto(val compared: Int = 0, val matched: Int = 0)
+
+/** `StatisticsPractice`: sin desglose por usuario. */
+@Serializable
+data class StatisticsPracticeDto(
+    val sessions: Int = 0,
+    val totals: PracticeTotalsDto = PracticeTotalsDto(),
+    @SerialName("by_protocol") val byProtocol: List<PracticeRowDto> = emptyList(),
+    @SerialName("by_target") val byTarget: List<PracticeRowDto> = emptyList(),
+    val notice: String = "",
+)
 
 /** `detail` es un objeto `{code, message}` o, en errores de esquema de FastAPI, una lista. */
 @Serializable

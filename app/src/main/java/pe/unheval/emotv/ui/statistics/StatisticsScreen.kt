@@ -16,6 +16,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import pe.unheval.emotv.R
 import pe.unheval.emotv.domain.model.SessionStatistics
+import pe.unheval.emotv.domain.model.StatisticsPractice
 import pe.unheval.emotv.domain.model.StatisticsScope
 import pe.unheval.emotv.ui.components.BarChart
 import pe.unheval.emotv.ui.components.BarChartRow
@@ -23,8 +24,12 @@ import pe.unheval.emotv.ui.components.Callout
 import pe.unheval.emotv.ui.components.CalloutTone
 import pe.unheval.emotv.ui.components.ContentScreen
 import pe.unheval.emotv.ui.components.EmotvCard
+import pe.unheval.emotv.ui.components.PracticeSentences
+import pe.unheval.emotv.ui.components.PracticeTags
+import pe.unheval.emotv.ui.components.PracticeTargetChart
 import pe.unheval.emotv.ui.components.RadioRow
 import pe.unheval.emotv.ui.components.expressionLabel
+import pe.unheval.emotv.ui.components.practiceBar
 import pe.unheval.emotv.ui.theme.EmotvColors
 import pe.unheval.emotv.ui.theme.EmotvSpacing
 import pe.unheval.emotv.ui.theme.EmotvType
@@ -38,6 +43,7 @@ object StatisticsTags {
     const val TOTAL = "statistics_total"
     const val SESSIONS_CHART = "statistics_sessions_chart"
     const val EXPRESSIONS_CHART = "statistics_expressions_chart"
+    const val PRACTICE = "statistics_practice"
 }
 
 /**
@@ -92,6 +98,8 @@ fun StatisticsScreen(
         item(key = "sessions") { SessionsCard(statistics) }
         item(key = "expressions") { ExpressionsCard(statistics) }
         item(key = "coincidence") { CoincidenceCard(statistics) }
+        // Aparte de la coincidencia con estímulos: en la práctica se pide la expresión.
+        statistics.practice?.let { practice -> item(key = "practice") { PracticeCard(practice) } }
     }
 }
 
@@ -209,5 +217,34 @@ private fun CoincidenceCard(statistics: SessionStatistics) {
             style = EmotvType.BodyMd,
             color = EmotvColors.Ink,
         )
+    }
+}
+
+@Composable
+private fun PracticeCard(practice: StatisticsPractice) {
+    EmotvCard(modifier = Modifier.testTag(StatisticsTags.PRACTICE)) {
+        CardTitle(stringResource(R.string.practice_title))
+        Text(
+            text = pluralStringResource(R.plurals.statistics_practice_sessions, practice.sessions, practice.sessions),
+            style = EmotvType.BodySm,
+            color = EmotvColors.Slate,
+        )
+        PracticeSentences(practice.totals)
+        PracticeTargetChart(practice.byTarget)
+        if (practice.byProtocol.isNotEmpty()) {
+            Text(stringResource(R.string.practice_by_protocol), style = EmotvType.BodySmStrong, color = EmotvColors.Ink)
+            BarChart(
+                rows = practice.byProtocol.mapIndexed { index, row ->
+                    practiceBar(
+                        key = PracticeTags.protocol(index),
+                        label = row.name,
+                        counts = row.counts,
+                        prefix = pluralStringResource(R.plurals.statistics_in_sessions, row.sessions, row.sessions),
+                    )
+                },
+                max = 1.0,
+            )
+        }
+        if (practice.notice.isNotEmpty()) Callout(title = practice.notice, body = null, tone = CalloutTone.Neutral)
     }
 }

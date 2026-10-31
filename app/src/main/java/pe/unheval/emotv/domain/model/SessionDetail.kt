@@ -26,6 +26,14 @@ sealed interface TimelineEvent {
 
     data class Stimulus(override val time: Double?, val title: String, val skipped: Boolean) : TimelineEvent
 
+    /** Ejercicio de práctica: se pidió [targetExpression]; [outcome] es `null` si quedó en curso. */
+    data class Practice(
+        override val time: Double?,
+        val targetExpression: String,
+        val outcome: PracticeOutcome?,
+        val secondsToAchieve: Double?,
+    ) : TimelineEvent
+
     /** [expression] es la expresión **estimada**; `null` si no se detectó un rostro. */
     data class Capture(override val time: Double?, val expression: String?, val goodQuality: Boolean) : TimelineEvent
 
@@ -62,6 +70,8 @@ data class SessionMetrics(
     val sentence: String,
     /** Aviso de que una sesión breve no permite concluir; `null` sin imágenes abstractas. */
     val abstractNotice: String?,
+    /** Ejercicios de práctica; `null` si la sesión no tuvo ninguno. */
+    val practice: SessionPractice? = null,
 )
 
 data class EmotionalStimulusMetric(

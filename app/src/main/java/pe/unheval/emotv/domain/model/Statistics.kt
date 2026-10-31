@@ -18,6 +18,8 @@ data class SessionStatistics(
     val expressions: List<ExpressionShare>,
     val compared: Int,
     val matched: Int,
+    /** Ejercicios de práctica, aparte de la coincidencia; `null` si ninguna sesión los tuvo. */
+    val practice: StatisticsPractice? = null,
 )
 
 /** Parte de las capturas de buena calidad estimadas en una expresión. */
