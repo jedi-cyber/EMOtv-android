@@ -2,6 +2,7 @@ package pe.unheval.emotv.ui.statistics
 
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -9,9 +10,11 @@ import org.junit.Test
 import pe.unheval.emotv.domain.model.StatisticsScope
 import pe.unheval.emotv.domain.usecase.LogoutUseCase
 import pe.unheval.emotv.testing.MainDispatcherRule
+import pe.unheval.emotv.testing.PRACTICE_NOTICE
 import pe.unheval.emotv.testing.TestGraph
 import pe.unheval.emotv.testing.sessionDto
 import pe.unheval.emotv.testing.statisticsDto
+import pe.unheval.emotv.testing.statisticsPracticeDto
 import pe.unheval.emotv.ui.reviews.ReviewsViewModel
 
 class StatisticsViewModelTest {
@@ -71,5 +74,26 @@ class StatisticsViewModelTest {
         assertEquals("r-1", pending.single().reportId)
         assertEquals("s-1", pending.single().session.id)
         assertTrue("GET reviews" in graph.api.calls)
+    }
+
+    @Test
+    fun `sin ejercicios de práctica no hay métricas de práctica`() = runTest {
+        assertNull(viewModel(isDocente = false).uiState.value.data.content?.practice)
+    }
+
+    @Test
+    fun `la práctica agregada llega aparte de la coincidencia con estímulos`() = runTest {
+        graph.api.statistics = { statisticsDto(scope = it, practice = statisticsPracticeDto()) }
+
+        val statistics = checkNotNull(viewModel(isDocente = false).uiState.value.data.content)
+        val practice = checkNotNull(statistics.practice)
+
+        assertEquals(2, practice.sessions)
+        assertEquals("Logró la expresión pedida en 2 de 3 ejercicios.", practice.totals.sentence)
+        assertEquals("Alegría y sorpresa", practice.byProtocol.single().name)
+        assertEquals(2, practice.byTarget.first().counts.achieved)
+        assertEquals(PRACTICE_NOTICE, practice.notice)
+        assertEquals(1, statistics.matched)
+        assertEquals(2, statistics.compared)
     }
 }

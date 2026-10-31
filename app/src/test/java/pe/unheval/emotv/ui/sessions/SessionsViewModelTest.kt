@@ -13,8 +13,11 @@ import pe.unheval.emotv.domain.usecase.LogoutUseCase
 import pe.unheval.emotv.testing.MainDispatcherRule
 import pe.unheval.emotv.testing.TestGraph
 import pe.unheval.emotv.testing.mobileError
+import pe.unheval.emotv.testing.PRACTICE_NOTICE
 import pe.unheval.emotv.testing.networkError
+import pe.unheval.emotv.testing.practiceDto
 import pe.unheval.emotv.testing.reportDto
+import pe.unheval.emotv.testing.sessionDetailDto
 import pe.unheval.emotv.testing.sessionDto
 import pe.unheval.emotv.ui.common.ScreenError
 
@@ -125,5 +128,22 @@ class SessionsViewModelTest {
 
         vm.onReportOpened()
         assertNull(vm.uiState.value.openReport)
+    }
+
+    @Test
+    fun `una sesión sin ejercicios de práctica no trae la sección`() = runTest {
+        assertNull(detail().uiState.value.data.content?.detail?.metrics?.practice)
+    }
+
+    @Test
+    fun `una sesión con práctica trae las frases, el desglose por expresión pedida y el aviso`() = runTest {
+        graph.api.sessionDetail = { sessionDetailDto(sessionDto(id = it), practice = practiceDto()) }
+
+        val practice = checkNotNull(detail().uiState.value.data.content?.detail?.metrics?.practice)
+
+        assertEquals("Logró la expresión pedida en 1 de 2 ejercicios.", practice.totals.sentence)
+        assertEquals(listOf("happiness", "surprise"), practice.byTarget.map { it.targetExpression })
+        assertEquals(1, practice.byTarget[1].counts.skipped)
+        assertEquals(PRACTICE_NOTICE, practice.notice)
     }
 }

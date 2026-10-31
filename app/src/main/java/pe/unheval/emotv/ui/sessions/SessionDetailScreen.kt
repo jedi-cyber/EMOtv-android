@@ -23,17 +23,21 @@ import pe.unheval.emotv.domain.model.EmotionalStimulusMetric
 import pe.unheval.emotv.domain.model.MarkerKind
 import pe.unheval.emotv.domain.model.QuestionnaireMoment
 import pe.unheval.emotv.domain.model.SessionMetrics
+import pe.unheval.emotv.domain.model.SessionPractice
 import pe.unheval.emotv.domain.model.TimelineEvent
 import pe.unheval.emotv.ui.components.Callout
 import pe.unheval.emotv.ui.components.CalloutTone
 import pe.unheval.emotv.ui.components.ContentScreen
 import pe.unheval.emotv.ui.components.EmotvCard
 import pe.unheval.emotv.ui.components.ErrorCallout
+import pe.unheval.emotv.ui.components.PracticeSentences
+import pe.unheval.emotv.ui.components.PracticeTargetChart
 import pe.unheval.emotv.ui.components.PrimaryButton
 import pe.unheval.emotv.ui.components.ReportStatusChip
 import pe.unheval.emotv.ui.components.SessionStateChip
 import pe.unheval.emotv.ui.components.expressionLabel
 import pe.unheval.emotv.ui.components.formatDateTime
+import pe.unheval.emotv.ui.components.practiceOutcomeText
 import pe.unheval.emotv.ui.components.sessionCode
 import pe.unheval.emotv.ui.components.sessionDetail
 import pe.unheval.emotv.ui.theme.EmotvColors
@@ -46,6 +50,7 @@ object SessionDetailTags {
     const val OPEN_REPORT = "detail_open_report"
     const val START_REPORT = "detail_start_report"
     const val TIMELINE = "detail_timeline"
+    const val PRACTICE = "detail_practice"
 }
 
 /**
@@ -111,6 +116,8 @@ fun SessionDetailScreen(
             }
         }
         item(key = "metrics") { MetricsCard(content.detail.metrics) }
+        // Sin ejercicios de práctica no hay sección.
+        content.detail.metrics.practice?.let { practice -> item(key = "practice") { PracticeCard(practice) } }
         item(key = "notice") {
             Callout(title = stringResource(R.string.estimates_notice), body = null, tone = CalloutTone.Neutral)
         }
@@ -159,6 +166,17 @@ private fun MetricsCard(metrics: SessionMetrics) {
         metrics.abstractNotice?.let {
             Callout(title = it, body = null, tone = CalloutTone.Neutral)
         }
+    }
+}
+
+/** Ejercicios de práctica: frases del servidor, desglose por expresión pedida y el aviso, siempre. */
+@Composable
+private fun PracticeCard(practice: SessionPractice) {
+    EmotvCard(modifier = Modifier.testTag(SessionDetailTags.PRACTICE)) {
+        CardTitle(stringResource(R.string.practice_title))
+        PracticeSentences(practice.totals)
+        PracticeTargetChart(practice.byTarget)
+        if (practice.notice.isNotEmpty()) Callout(title = practice.notice, body = null, tone = CalloutTone.Neutral)
     }
 }
 
@@ -263,6 +281,7 @@ private fun timelineText(event: TimelineEvent): String = when (event) {
         if (event.skipped) R.string.timeline_stimulus_skipped else R.string.timeline_stimulus,
         event.title,
     )
+    is TimelineEvent.Practice -> practiceOutcomeText(event.targetExpression, event.outcome, event.secondsToAchieve)
     is TimelineEvent.Capture -> when {
         event.expression == null -> stringResource(R.string.timeline_capture_no_face)
         !event.goodQuality -> stringResource(R.string.timeline_capture_flagged)
