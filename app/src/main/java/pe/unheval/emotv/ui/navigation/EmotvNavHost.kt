@@ -206,7 +206,6 @@ fun EmotvNavHost(
             StatisticsScreen(
                 state = state,
                 onRefresh = viewModel::refresh,
-                onChooseScope = viewModel::chooseScope,
                 onBack = { navController.popBackStack() },
             )
         }

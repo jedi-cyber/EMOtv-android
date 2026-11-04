@@ -20,6 +20,8 @@ data class SessionStatistics(
     val matched: Int,
     /** Ejercicios de práctica, aparte de la coincidencia; `null` si ninguna sesión los tuvo. */
     val practice: StatisticsPractice? = null,
+    /** Pasos «¿Qué emoción es?»; `null` si ninguna sesión los tuvo. */
+    val recognition: StatisticsRecognition? = null,
 )
 
 /** Parte de las capturas de buena calidad estimadas en una expresión. */

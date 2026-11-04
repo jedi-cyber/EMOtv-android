@@ -20,10 +20,12 @@ import pe.unheval.emotv.domain.usecase.isDocente
 import pe.unheval.emotv.ui.common.AccountViewModel
 import pe.unheval.emotv.ui.common.Loadable
 
+/**
+ * El Docente ve siempre las de su grupo: sus sesiones propias son de demostración y no cuentan,
+ * así que «Mis sesiones» le daría cero (contrato 4.4).
+ */
 data class StatisticsUiState(
     val scope: StatisticsScope = StatisticsScope.Mine,
-    /** Solo el Docente elige entre sus sesiones y las de su grupo. */
-    val canChooseScope: Boolean = false,
     val data: Loadable<SessionStatistics> = Loadable(),
 )
 
@@ -34,7 +36,9 @@ class StatisticsViewModel(
     logout: LogoutUseCase,
 ) : AccountViewModel(logout) {
 
-    private val state = MutableStateFlow(StatisticsUiState(canChooseScope = isDocente))
+    private val state = MutableStateFlow(
+        StatisticsUiState(scope = if (isDocente) StatisticsScope.Group else StatisticsScope.Mine),
+    )
     val uiState: StateFlow<StatisticsUiState> = state.asStateFlow()
     private var loading: Job? = null
 
@@ -45,13 +49,6 @@ class StatisticsViewModel(
     override fun refresh() {
         if (state.value.data.busy) return
         state.update { it.copy(data = it.data.reloading()) }
-        load()
-    }
-
-    fun chooseScope(scope: StatisticsScope) {
-        if (!state.value.canChooseScope || scope == state.value.scope) return
-        // Los datos del otro alcance no se mezclan con los nuevos.
-        state.update { it.copy(scope = scope, data = Loadable()) }
         load()
     }
 

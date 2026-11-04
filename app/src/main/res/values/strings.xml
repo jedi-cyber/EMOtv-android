@@ -111,6 +111,7 @@
     <string name="error_generic">No se pudo cargar la información</string>
     <string name="error_generic_body">Vuelve a intentarlo en un momento.</string>
     <string name="session_from_group">De tu grupo</string>
+    <string name="session_demonstration">Tú (demostración)</string>
     <string name="session_started_at">Empezó el %1$s</string>
 
     <!-- Estado del reporte (`report_status`) -->
@@ -212,8 +213,7 @@
 
     <!-- Estadísticas agregadas -->
     <string name="statistics_title">Estadísticas</string>
-    <string name="statistics_scope_mine">Mis sesiones</string>
-    <string name="statistics_scope_group">Mi grupo</string>
+    <string name="statistics_scope_group_hint">Sesiones de tu grupo. Tus sesiones de demostración no cuentan en las estadísticas.</string>
     <string name="statistics_sessions_title">Sesiones</string>
     <string name="statistics_total">Total</string>
     <string name="statistics_completed">Completas</string>
@@ -268,4 +268,27 @@
     <string name="practice_outcome_skipped">se saltó</string>
     <string name="practice_outcome_stopped">la sesión se detuvo</string>
     <string name="practice_outcome_none">sin resultado registrado</string>
+    <string name="timeline_imitation">Haz la misma cara (%1$s): %2$s</string>
+    <!-- «¿Qué emoción es?»: describe la respuesta, no valora a la persona -->
+    <string name="recognition_title">Reconocimiento de emociones</string>
+    <string name="recognition_by_target">Por emoción de la imagen</string>
+    <string name="recognition_chart_hint">Pasos en que se eligió la emoción de la imagen, de los que llegaron a su final.</string>
+    <string name="recognition_other_choices">Eligió en su lugar: %1$s</string>
+    <string name="recognition_average">Tiempo promedio hasta responder: %1$s s</string>
+    <plurals name="recognition_timed_out">
+        <item quantity="one">%1$d terminó sin respuesta y cuenta en el total.</item>
+        <item quantity="many">%1$d terminaron sin respuesta y cuentan en el total.</item>
+        <item quantity="other">%1$d terminaron sin respuesta y cuentan en el total.</item>
+    </plurals>
+    <plurals name="statistics_recognition_sessions">
+        <item quantity="one">%1$d sesión con pasos «¿Qué emoción es?».</item>
+        <item quantity="many">%1$d sesiones con pasos «¿Qué emoción es?».</item>
+        <item quantity="other">%1$d sesiones con pasos «¿Qué emoción es?».</item>
+    </plurals>
+    <string name="timeline_recognition">¿Qué emoción es? %1$s (%2$s): %3$s</string>
+    <string name="recognition_image_of">imagen de %1$s</string>
+    <string name="recognition_outcome_answered">respondió</string>
+    <string name="recognition_outcome_chose">eligió %1$s</string>
+    <string name="recognition_outcome_chose_in">eligió %1$s en %2$s s</string>
+    <string name="recognition_outcome_timed_out">terminó el tiempo sin respuesta</string>
 </resources>

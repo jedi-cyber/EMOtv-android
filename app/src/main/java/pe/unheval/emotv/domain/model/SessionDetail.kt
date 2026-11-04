@@ -26,12 +26,26 @@ sealed interface TimelineEvent {
 
     data class Stimulus(override val time: Double?, val title: String, val skipped: Boolean) : TimelineEvent
 
-    /** Ejercicio de práctica: se pidió [targetExpression]; [outcome] es `null` si quedó en curso. */
+    /**
+     * Ejercicio de práctica: se pidió [targetExpression]; [outcome] es `null` si quedó en curso.
+     * Con [imitate], fue «Haz la misma cara», con la imagen como modelo.
+     */
     data class Practice(
         override val time: Double?,
         val targetExpression: String,
         val outcome: PracticeOutcome?,
         val secondsToAchieve: Double?,
+        val imitate: Boolean = false,
+    ) : TimelineEvent
+
+    /** Paso «¿Qué emoción es?»: la imagen era de [targetExpression] y se eligió [chosenExpression]. */
+    data class Recognition(
+        override val time: Double?,
+        val title: String,
+        val targetExpression: String,
+        val outcome: RecognitionOutcome?,
+        val chosenExpression: String?,
+        val secondsToAnswer: Double?,
     ) : TimelineEvent
 
     /** [expression] es la expresión **estimada**; `null` si no se detectó un rostro. */
@@ -72,6 +86,8 @@ data class SessionMetrics(
     val abstractNotice: String?,
     /** Ejercicios de práctica; `null` si la sesión no tuvo ninguno. */
     val practice: SessionPractice? = null,
+    /** Pasos «¿Qué emoción es?»; `null` si la sesión no tuvo ninguno. */
+    val recognition: SessionRecognition? = null,
 )
 
 data class EmotionalStimulusMetric(

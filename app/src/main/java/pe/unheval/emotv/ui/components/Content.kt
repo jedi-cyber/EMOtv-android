@@ -311,7 +311,11 @@ fun sessionCode(session: SessionSummary): String =
 fun sessionDetail(session: SessionSummary): String {
     val audience = audienceLabel(session.audience)?.let { stringResource(it) }
     val protocol = session.protocolName ?: stringResource(R.string.dashboard_no_protocol)
-    val group = if (session.mine) null else stringResource(R.string.session_from_group)
+    val group = when {
+        session.demonstration -> stringResource(R.string.session_demonstration)
+        session.mine -> null
+        else -> stringResource(R.string.session_from_group)
+    }
     return listOfNotNull(audience, protocol, group).joinToString(" · ")
 }
 

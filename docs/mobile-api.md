@@ -6,7 +6,7 @@ proyecto Android** (`docs/mobile-api.md`). Si cambia aquí, se vuelve a copiar.
 
 | | |
 | --- | --- |
-| Revisión del contrato | 4.1 (2026-10-30). Ver [historial](#historial). **Incompatible con la revisión 3**; la 4.1 solo agrega campos opcionales a la 4 |
+| Revisión del contrato | 4.4 (2026-11-04). Ver [historial](#historial). **Incompatible con la revisión 3**; la 4.1, la 4.2 y la 4.3 solo agregan campos opcionales a la 4, y la 4.4 solo aclara la documentación |
 | Versión de la API | La que devuelve `GET /mobile/status` en `api_version` (hoy `1.0.0rc1`) |
 | Prefijo | Todas las rutas empiezan con `/mobile` |
 | Formato | JSON en UTF-8 |
@@ -423,6 +423,11 @@ Con token. Detalle de una sesión a la que la cuenta tiene acceso
 - Si `metrics.practice` no es `null`, `practice.notice` se muestra siempre junto
   a los ejercicios. `practice.totals.sentence`, `average_sentence` y
   `feedback_sentence` se muestran tal cual (los dos últimos, si no son `null`).
+- Desde la revisión 4.2, `metrics.recognition` trae los pasos «¿Qué emoción
+  es?» ([`Recognition`](#recognition)) y es `null` si el protocolo no tenía
+  ninguno. En `lanes.stimuli`, un reconocimiento llega con `kind` `recognition`
+  y los campos `target_expression`, `outcome`, `chosen_expression` y
+  `seconds_to_answer`. `recognition.notice` se muestra siempre junto a ellos.
 
 Errores: `403 forbidden`, `404 not_found`, `503 unavailable`.
 
@@ -525,7 +530,7 @@ Con token.
 
 | Parámetro | Tipo | Por defecto | Uso |
 | --- | --- | --- | --- |
-| `scope` | `mine` o `group` | `mine` | `group` solo para el Docente: las sesiones de su grupo (`403` para el Usuario) |
+| `scope` | `mine` o `group` | `mine` | `group` solo para el Docente: las sesiones de su grupo (`403` para el Usuario). Para el Docente, `mine` siempre da cero sesiones: ver la nota de abajo |
 | `date_from` | `YYYY-MM-DD` | sin límite | Desde (inclusive) |
 | `date_to` | `YYYY-MM-DD` | sin límite | Hasta (inclusive). Anterior a `date_from`: `422 invalid` |
 
@@ -559,10 +564,18 @@ Con token.
 
 - `notice` se muestra siempre; `few_sessions_notice` cuando no es `null`.
 - No hay filas por usuario ni por persona.
+- Las sesiones propias del Docente son de demostración, para enseñar a usar
+  EMOtv, y no cuentan en las estadísticas: con `scope=mine`, el Docente recibe
+  `sessions.total` 0. El aplicativo pide `scope=group` para el Docente y no le
+  ofrece «Mis sesiones» en las estadísticas.
 - Desde la revisión 4.1, `practice` trae los ejercicios de práctica agregados
   ([`StatisticsPractice`](#statisticspractice)), aparte de `coincidence`; es
   `null` si ninguna sesión tuvo ejercicios. `practice.notice` se muestra siempre
   junto a ellos. A diferencia de la web, no trae el desglose por usuario.
+- Desde la revisión 4.2, `recognition` trae los reconocimientos agregados
+  ([`StatisticsRecognition`](#statisticsrecognition)); es `null` si ninguna
+  sesión tuvo reconocimientos. `recognition.notice` se muestra siempre junto a
+  ellos.
 
 Errores: `403 forbidden`, `422 invalid`, `503 unavailable`.
 
@@ -627,7 +640,7 @@ Columna «Nulo»: **sí** si el campo puede ser `null` (siempre viene). Tipos:
 | `state` | string | no | [`state`](#valores-enumerados) |
 | `audience` | string | no | [`audience`](#valores-enumerados) |
 | `protocol_name` | string | sí | `null` sin protocolo |
-| `mine` | boolean | no | `true` si la condujo esta cuenta; `false` en las del grupo del Docente |
+| `mine` | boolean | no | `true` si la condujo esta cuenta; `false` en las del grupo del Docente. Para el Docente, `true` es una sesión de demostración: el aplicativo la rotula «Tú (demostración)», como la web |
 | `report_status` | string | sí | [`report_status`](#valores-enumerados) del reporte vigente; `null` si no tiene |
 
 ### `SessionDetail`
@@ -645,7 +658,7 @@ Columna «Nulo»: **sí** si el campo puede ser `null` (siempre viene). Tipos:
 | `session_code` | string | sí | |
 | `duration_seconds` | number | no | Último tiempo registrado |
 | `lanes.questionnaires[]` | objeto | no | `time` (number, nulo), `moment` (`pre`/`post`), `title`, `answers[]` con `question`, `kind` y `answer` (cualquier tipo JSON, nulo si no respondió) |
-| `lanes.stimuli[]` | objeto | no | `step_index` (int), `title`, `kind` ([`kind`](#valores-enumerados)), `start` y `end` (number, nulos), `skipped` (boolean). Con `kind` `practice` (4.1): `target_expression` (string), `outcome` ([`practice_outcome`](#valores-enumerados), nulo si el ejercicio sigue en curso) y `seconds_to_achieve` (number, nulo) |
+| `lanes.stimuli[]` | objeto | no | `step_index` (int), `title`, `kind` ([`kind`](#valores-enumerados)), `start` y `end` (number, nulos), `skipped` (boolean). Con `kind` `practice` (4.1): `target_expression` (string), `imitate` (boolean, desde 4.3: imitó la imagen de un modelo; puede faltar en un servidor anterior), `outcome` ([`practice_outcome`](#valores-enumerados), nulo si el ejercicio sigue en curso) y `seconds_to_achieve` (number, nulo). Con `kind` `recognition` (4.2): `target_expression` (string), `outcome` ([`recognition_outcome`](#valores-enumerados), nulo si sigue en curso), `chosen_expression` (string, nulo) y `seconds_to_answer` (number, nulo) |
 | `lanes.captures[]` | objeto | no | `time` (number), `step_index` (int, nulo), `emotion` (string, nulo: expresión **estimada**), `probability` (number, nulo), `quality` ([`quality`](#valores-enumerados)) |
 | `lanes.said[]` | objeto | no | Lo que la persona dijo ver en una imagen abstracta: `time`, `step_index`, `title`, `text` |
 | `lanes.markers[]` | objeto | no | `time`, `kind` ([`marker`](#valores-enumerados)), `note` (nulo) |
@@ -664,6 +677,7 @@ Columna «Nulo»: **sí** si el campo puede ser `null` (siempre viene). Tipos:
 | `totals.sentence` | string | no | Texto para mostrar |
 | `abstract_notice` | string | sí | Aviso de que una sesión breve no permite concluir |
 | `practice` | [`Practice`](#practice) | sí | Desde 4.1. Ejercicios de práctica; `null` si el protocolo no tenía ninguno. Puede faltar en un servidor anterior: tratarlo como `null` |
+| `recognition` | [`Recognition`](#recognition) | sí | Desde 4.2. Pasos «¿Qué emoción es?»; `null` si el protocolo no tenía ninguno. Puede faltar en un servidor anterior: tratarlo como `null` |
 
 ### `Practice`
 
@@ -675,10 +689,43 @@ aplicados se informan aparte.
 
 | Campo | Tipo | Nulo | Notas |
 | --- | --- | --- | --- |
-| `exercises[]` | objeto | no | Por ejercicio, en orden: `step_index` (int), `target_expression` (string), `hold_seconds` (int), `max_seconds` (int), `outcome` ([`practice_outcome`](#valores-enumerados), nulo si la sesión no llegó a él), `seconds_to_achieve` (number, nulo), `peak_level` (number de 0 a 1, nulo), `relative_to_calibration` (boolean, nulo), `feedback_visible` (boolean, nulo) |
+| `exercises[]` | objeto | no | Por ejercicio, en orden: `step_index` (int), `target_expression` (string), `hold_seconds` (int), `max_seconds` (int), `imitate` (boolean, desde 4.3; puede faltar en un servidor anterior: tratarlo como `false`), `outcome` ([`practice_outcome`](#valores-enumerados), nulo si la sesión no llegó a él), `seconds_to_achieve` (number, nulo), `peak_level` (number de 0 a 1, nulo), `relative_to_calibration` (boolean, nulo), `feedback_visible` (boolean, nulo) |
 | `totals` | [`PracticeTotals`](#practicetotals) | no | Además: `exercises` (int, todos los del protocolo) y `not_reached` (int) |
 | `by_target[]` | [`PracticeRow`](#practicerow) | no | Por expresión pedida, con `target_expression` |
 | `notice` | string | no | Aviso fijo: se muestra siempre junto a los ejercicios |
+
+### `Recognition`
+
+Pasos «¿Qué emoción es?» de una sesión (revisión 4.2). Se muestra una imagen
+emocional y la persona elige qué emoción es; la cámara no se analiza. Describen
+las respuestas; no valoran a nadie. Un paso cuenta en el total cuando llegó a su
+final (respondido o con el tiempo vencido, que cuenta como no elegido).
+
+| Campo | Tipo | Nulo | Notas |
+| --- | --- | --- | --- |
+| `exercises[]` | objeto | no | Por paso, en orden: `step_index` (int), `stimulus_id` (string), `target_expression` (string: la expresión esperada de la imagen), `max_seconds` (int), `options` (lista de string, nula si la sesión no llegó al paso), `outcome` ([`recognition_outcome`](#valores-enumerados), nulo), `chosen_expression` (string, nulo), `matched` (boolean, nulo), `seconds_to_answer` (number, nulo), `answered_by` (`participant` o `conductor`, nulo) |
+| `totals` | [`RecognitionTotals`](#recognitiontotals) | no | Además: `exercises` (int) y `not_reached` (int) |
+| `by_target[]` | [`RecognitionRow`](#recognitionrow) | no | Por emoción de la imagen |
+| `notice` | string | no | Aviso fijo: se muestra siempre junto a los pasos |
+
+### `RecognitionTotals`
+
+| Campo | Tipo | Nulo | Notas |
+| --- | --- | --- | --- |
+| `applied` | int | no | Pasos que llegaron a su final |
+| `matched` | int | no | En cuántos se eligió la emoción de la imagen |
+| `timed_out` | int | no | De los `applied`, sin respuesta |
+| `skipped`, `stopped` | int | no | No cuentan en `applied` |
+| `average_seconds_to_answer` | number | sí | Solo de los respondidos |
+| `sentence` | string | no | Texto para mostrar |
+
+### `RecognitionRow`
+
+| Campo | Tipo | Nulo | Notas |
+| --- | --- | --- | --- |
+| `target_expression` | string | no | |
+| `applied`, `matched`, `timed_out`, `skipped`, `stopped` | int | no | |
+| `other_choices[]` | objeto | no | Lo que se eligió en su lugar: `expression` (string) y `count` (int) |
 
 ### `PracticeTotals`
 
@@ -735,6 +782,7 @@ aplicados se informan aparte.
 | `expressions.rows[]` | objeto | no | `expression`, `captures` (int), `percent` (number), `sessions` (int) |
 | `coincidence.compared`, `coincidence.matched` | int | no | Estímulos emocionales comparados y en los que coincidió la expresión estimada |
 | `practice` | [`StatisticsPractice`](#statisticspractice) | sí | Desde 4.1; `null` si ninguna sesión tuvo ejercicios. Puede faltar en un servidor anterior |
+| `recognition` | [`StatisticsRecognition`](#statisticsrecognition) | sí | Desde 4.2; `null` si ninguna sesión tuvo reconocimientos. Puede faltar en un servidor anterior |
 
 ### `StatisticsPractice`
 
@@ -745,6 +793,15 @@ aplicados se informan aparte.
 | `by_protocol[]` | [`PracticeRow`](#practicerow) | no | Con `family_id`, `name` y `sessions` (int) |
 | `by_target[]` | [`PracticeRow`](#practicerow) | no | Con `target_expression` |
 | `notice` | string | no | Aviso fijo: se muestra siempre junto a los ejercicios |
+
+### `StatisticsRecognition`
+
+| Campo | Tipo | Nulo | Notas |
+| --- | --- | --- | --- |
+| `sessions` | int | no | Sesiones con reconocimientos |
+| `totals` | [`RecognitionTotals`](#recognitiontotals) | no | |
+| `by_target[]` | [`RecognitionRow`](#recognitionrow) | no | |
+| `notice` | string | no | Aviso fijo: se muestra siempre junto a los reconocimientos |
 
 ## Valores enumerados
 
@@ -760,8 +817,9 @@ aplicativo debe tolerar valores desconocidos (ver
 | `report_status` | `draft` (borrador), `submitted` (en revisión), `changes_requested` (con observaciones), `approved` (aprobado) | No |
 | `section` | `timeline`, `metrics`, `questionnaires`, `narrative`, `general` | No |
 | `report_action` | `created`, `edited`, `submitted`, `commented`, `returned`, `approved`, `closed`, `new_version`, `printed` | Sí |
-| `kind` (estímulo) | `emotional`, `abstract`; `practice` (4.1) en la línea de tiempo | Sí |
+| `kind` (estímulo) | `emotional`, `abstract`; `practice` (4.1) y `recognition` (4.2) en la línea de tiempo | Sí |
 | `practice_outcome` | `achieved` (logró la expresión pedida), `timed_out` (terminó el tiempo), `skipped` (se saltó), `stopped` (la sesión se detuvo) | Sí |
+| `recognition_outcome` | `answered` (respondió), `timed_out` (terminó el tiempo sin respuesta), `skipped` (se saltó), `stopped` (la sesión se detuvo) | Sí |
 | `target_expression` | `happiness`, `surprise`, `sadness`, `anger`, `fear`, `disgust`, `neutral` (cara tranquila) | Sí |
 | `quality` (captura) | `good`, `flagged` | Sí |
 | `marker` | `distracted`, `laughed`, `asked_to_stop`, `cried`, `note` | Sí |
@@ -802,6 +860,8 @@ el servidor no las puede comprobar:
 - Los ejercicios de práctica se muestran con su `notice` a la vista y con los
   textos del servidor; el aplicativo no los valora («bien», «mal») ni los
   presenta como el estado emocional de la persona.
+- Los reconocimientos se muestran igual: con su `notice` y los textos del
+  servidor, sin «correcto» ni «incorrecto» y sin calcular puntajes.
 
 ## Configuración del servidor
 
@@ -820,6 +880,9 @@ la API (`8000`) no se publica fuera de Docker.
 
 | Revisión | Fecha | Cambios |
 | --- | --- | --- |
+| 4.4 | 2026-11-04 | Solo documentación; la API no cambió. Las sesiones propias del Docente son de demostración: `GET /mobile/statistics?scope=mine` le devuelve cero sesiones, así que el aplicativo usa `scope=group` para el Docente, y `SessionSummary.mine=true` del Docente se rotula «Tú (demostración)» |
+| 4.3 | 2026-11-04 | Compatible con la 4, la 4.1 y la 4.2: solo un campo nuevo y opcional. `imitate` (boolean) en `metrics.practice.exercises[]` y en los ejercicios de `lanes.stimuli`: el ejercicio fue «Haz la misma cara», con la imagen como modelo. No hay rutas nuevas |
+| 4.2 | 2026-11-02 | Compatible con la 4 y la 4.1: solo campos nuevos y opcionales. `GET /mobile/sessions/{id}` agrega `metrics.recognition` ([`Recognition`](#recognition)) y, en `lanes.stimuli`, los pasos con `kind` `recognition`, `chosen_expression` y `seconds_to_answer`. `GET /mobile/statistics` agrega `recognition` ([`StatisticsRecognition`](#statisticsrecognition)). Nueva enumeración `recognition_outcome`. No hay rutas nuevas |
 | 4.1 | 2026-10-30 | Compatible con la 4: solo campos nuevos y opcionales. `GET /mobile/sessions/{id}` agrega `metrics.practice` ([`Practice`](#practice)) y, en `lanes.stimuli`, los ejercicios con `kind` `practice`, `target_expression`, `outcome` y `seconds_to_achieve`. `GET /mobile/statistics` agrega `practice` ([`StatisticsPractice`](#statisticspractice)), sin desglose por usuario. Los reportes (`metrics`) traen el mismo bloque. Nuevas enumeraciones `practice_outcome` y `target_expression`. No hay rutas nuevas: el aplicativo sigue sin conducir sesiones ni enviar imágenes |
 | 4 | 2026-10-29 | **Incompatible**: el aplicativo deja de conducir sesiones, para que ninguna captura del rostro salga del teléfono. Se quitan `GET /mobile/protocols`, `POST /mobile/sessions`, `next`, cuestionarios, `advance`, `calibration`, `frames`, `skip`, `finish`, `stop` y las imágenes de estímulos. `Summary` quita `protocols` y `audiences` y agrega `pending_reviews`; incluye las sesiones del grupo del Docente. `SessionSummary` quita `guided_phase` y agrega `mine` y `report_status`. Nuevos: `GET /mobile/sessions`, `GET /mobile/sessions/{id}` (línea de tiempo y métricas), reporte (`GET`/`POST /mobile/sessions/{id}/report`, `GET`/`PUT /mobile/reports/{id}`, `submit`, `comments`, `return`, `approve`), `GET /mobile/reviews` y `GET /mobile/statistics`. `services` agrega `reports` y `statistics`. Se quitan los errores `413`, `415`, `428` y `invalid_or_expired_url` |
 | 3 | 2026-10-26 | **Incompatible**: se quitan los participantes. `POST /mobile/sessions` recibe `protocol_id` o `session_type` (propia, adulto, infantil) y `authorization_confirmed`; ya no recibe `participant_id`. Se quita `POST .../confirm` y la fase `confirmation`. `GET /mobile/protocols` no lleva parámetros y trae `audience` y `confirmation`. `Summary` cambia `participants` por `recent_sessions`, `protocols` y `audiences`; `SessionSummary` cambia `participant_id`/`participant_code` por `code` y `audience`. `services.participant_sessions` pasa a `services.sessions`. Nueva fase `live` y `POST .../finish` para sesiones sin protocolo. `next` y `StartedSession` traen el `code` de la sesión. Nuevo error `428 child_notice_required` |
