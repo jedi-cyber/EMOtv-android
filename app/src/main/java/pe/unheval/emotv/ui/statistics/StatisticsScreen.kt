@@ -31,12 +31,11 @@ import pe.unheval.emotv.ui.components.PracticeTargetChart
 import pe.unheval.emotv.ui.components.RecognitionSentences
 import pe.unheval.emotv.ui.components.RecognitionTargetChart
 import pe.unheval.emotv.ui.components.expressionLabel
+import pe.unheval.emotv.ui.components.formatDecimal
 import pe.unheval.emotv.ui.components.practiceBar
 import pe.unheval.emotv.ui.theme.EmotvColors
 import pe.unheval.emotv.ui.theme.EmotvSpacing
 import pe.unheval.emotv.ui.theme.EmotvType
-import java.text.NumberFormat
-import java.util.Locale
 import kotlin.math.roundToInt
 
 object StatisticsTags {
@@ -158,7 +157,6 @@ private fun Figure(label: String, value: String, modifier: Modifier = Modifier) 
 
 @Composable
 private fun ExpressionsCard(statistics: SessionStatistics) {
-    val percent = NumberFormat.getNumberInstance(Locale.forLanguageTag("es-PE")).apply { maximumFractionDigits = 1 }
     EmotvCard {
         CardTitle(stringResource(R.string.statistics_expressions_title))
         Text(
@@ -173,7 +171,7 @@ private fun ExpressionsCard(statistics: SessionStatistics) {
                         key = row.expression,
                         label = expressionLabel(row.expression),
                         value = row.percent,
-                        valueText = stringResource(R.string.statistics_percent, percent.format(row.percent)),
+                        valueText = stringResource(R.string.statistics_percent, formatDecimal(row.percent)),
                         detail = pluralStringResource(R.plurals.statistics_captures_in_sessions, row.captures, row.captures) +
                             " " + pluralStringResource(R.plurals.statistics_in_sessions, row.sessions, row.sessions),
                     )
