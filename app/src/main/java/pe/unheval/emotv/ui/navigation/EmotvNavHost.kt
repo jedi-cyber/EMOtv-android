@@ -120,6 +120,7 @@ fun EmotvNavHost(
             val state by viewModel.uiState.collectAsStateWithLifecycle()
             val revision by viewModel.boardRevision.collectAsStateWithLifecycle()
             val roundImage by viewModel.roundImage.collectAsStateWithLifecycle()
+            val optionImages by viewModel.optionImages.collectAsStateWithLifecycle()
             LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.onStart() }
             LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.onStop() }
             ParticipationScreen(
@@ -127,6 +128,7 @@ fun EmotvNavHost(
                 board = viewModel.board,
                 revision = revision,
                 roundImage = roundImage,
+                optionImages = optionImages,
                 actions = ParticipationActions(
                     onCodeChange = viewModel::onCodeChange,
                     onSubmitCode = viewModel::submitCode,

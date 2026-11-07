@@ -76,6 +76,9 @@ class ParticipationViewModel(
     /** La imagen del juego en curso; se borra al cambiar de ronda, al terminar y al salir. */
     val roundImage: StateFlow<RoundImage?> = imageState.asStateFlow()
     private var loadingExposure: String? = null
+    private val optionImagesState = MutableStateFlow<Map<String, ByteArray>>(emptyMap())
+    /** Al buscar la misma emoción: la imagen de cada cara de la ronda, por su clave. */
+    val optionImages: StateFlow<Map<String, ByteArray>> = optionImagesState.asStateFlow()
 
     private var token: String? = null
     private var round: String? = null
@@ -178,24 +181,33 @@ class ParticipationViewModel(
 
     // --- Juego de emparejar --------------------------------------------------------------
 
-    /** Pide la imagen cuando cambia la ronda y suelta la anterior. */
+    /**
+     * Pide las imágenes cuando cambia la ronda y suelta las anteriores: la de la
+     * ronda y, al buscar la misma emoción, la de cada cara para elegir.
+     */
     private fun syncRoundImage(view: ParticipantView) {
-        val exposure = view.exposure.takeIf { view.game?.type == GameType.Matching }
-        if (exposure == null) {
-            imageState.value = null
-            loadingExposure = null
+        val game = view.game
+        val exposure = view.exposure.takeIf { game?.type?.playable == true }
+        if (game == null || exposure == null) {
+            discardImage()
             return
         }
         if (imageState.value?.exposure == exposure || loadingExposure == exposure) return
         imageState.value = null
+        optionImagesState.value = emptyMap()
         loadingExposure = exposure
         val link = token ?: return
+        val optionKeys = if (game.type == GameType.Similar) game.options.map { it.key } else emptyList()
         viewModelScope.launch {
             val result = repository.stimulus(link)
-            // Si mientras tanto cambió la ronda, esta imagen ya no sirve.
+            val faces = optionKeys.mapNotNull { key ->
+                (repository.gameOption(link, key) as? Outcome.Success)?.let { key to it.value }
+            }.toMap()
+            // Si mientras tanto cambió la ronda, estas imágenes ya no sirven.
             if (loadingExposure != exposure) return@launch
             loadingExposure = null
             if (result is Outcome.Success) imageState.value = RoundImage(exposure, result.value)
+            optionImagesState.value = faces
         }
     }
 
@@ -209,7 +221,7 @@ class ParticipationViewModel(
         val current = active() ?: return
         val game = current.view.game ?: return
         val link = token ?: return
-        if (current.gameSending || game.type != GameType.Matching) return
+        if (current.gameSending || !game.type.playable) return
         val allowed = when (action) {
             GameAction.Answer -> game.state.isPlaying && game.options.any { it.key == expression && it.available }
             GameAction.Help -> game.canHelp
@@ -327,6 +339,7 @@ class ParticipationViewModel(
 
     private fun discardImage() {
         imageState.value = null
+        optionImagesState.value = emptyMap()
         loadingExposure = null
     }
 

@@ -52,6 +52,9 @@ class ParticipationRepositoryImpl(private val api: ParticipationApi) : Participa
 
     override suspend fun stimulus(token: String): Outcome<ByteArray> =
         apiCall { api.stimulus(token).use { it.bytes() } }
+
+    override suspend fun gameOption(token: String, key: String): Outcome<ByteArray> =
+        apiCall { api.gameOption(token, key).use { it.bytes() } }
 }
 
 internal fun ParticipantStateDto.toDomain(): ParticipantView = ParticipantView(

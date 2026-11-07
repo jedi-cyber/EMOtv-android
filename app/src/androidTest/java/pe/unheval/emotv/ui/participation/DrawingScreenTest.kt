@@ -59,6 +59,8 @@ private class FakeParticipation : ParticipationRepository {
     override suspend fun game(token: String, action: GameAction, expression: String?): Outcome<Unit> =
         Outcome.Success(Unit)
     override suspend fun stimulus(token: String): Outcome<ByteArray> = Outcome.Success(ByteArray(0))
+    override suspend fun gameOption(token: String, key: String): Outcome<ByteArray> =
+        Outcome.Success(ByteArray(0))
 }
 
 @RunWith(AndroidJUnit4::class)

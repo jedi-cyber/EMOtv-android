@@ -31,8 +31,10 @@ import pe.unheval.emotv.testing.MainDispatcherRule
  * llama al servidor real.
  */
 private class FakeGameServer(val rounds: Int = 2, val type: String = "matching") : ParticipationRepository {
-    private val target = "happiness"
-    private val keys = listOf("sadness", "happiness", "anger")
+    // Al buscar la misma emoción, la clave es el lugar de la cara y no dice su emoción.
+    private val similar = type == "similar"
+    private val target = if (similar) "2" else "happiness"
+    private val keys = if (similar) listOf("1", "2", "3") else listOf("sadness", "happiness", "anger")
     var round = 0
     var state = "playing"
     val tried = mutableListOf<String>()
@@ -42,6 +44,7 @@ private class FakeGameServer(val rounds: Int = 2, val type: String = "matching")
     val recorded = mutableListOf<Pair<GameAction, String?>>()
     val sent = mutableListOf<Pair<GameAction, String?>>()
     var stimulusCalls = 0
+    val optionCalls = mutableListOf<String>()
     /** El servidor registra la acción, pero la respuesta se pierde en la red. */
     var loseNextResponse = false
     var offline = false
@@ -54,7 +57,10 @@ private class FakeGameServer(val rounds: Int = 2, val type: String = "matching")
         game = ParticipantGameDto(
             round = "0-1-$round", number = round + 1, total = rounds, gameType = type,
             question = "¿Qué emoción muestra esta cara?", state = state,
-            options = keys.map { GameOptionDto(it, it.replaceFirstChar(Char::uppercase), it !in tried && it != removed) },
+            options = keys.map {
+                GameOptionDto(it, if (similar) "Cara $it" else it.replaceFirstChar(Char::uppercase),
+                    it !in tried && it != removed)
+            },
             answer = target.takeIf { state == "matched" || state == "shown" },
             message = when (state) {
                 "retry" -> "Mira otra vez la cara."
@@ -77,6 +83,12 @@ private class FakeGameServer(val rounds: Int = 2, val type: String = "matching")
     override suspend fun stimulus(token: String): Outcome<ByteArray> {
         stimulusCalls += 1
         return Outcome.Success(byteArrayOf(1, 2, 3))
+    }
+
+    override suspend fun gameOption(token: String, key: String): Outcome<ByteArray> {
+        optionCalls += key
+        return if (key in keys) Outcome.Success(byteArrayOf(key.last().code.toByte()))
+        else Outcome.Failure(AppError.Server(404, null, null))
     }
 
     override suspend fun game(token: String, action: GameAction, expression: String?): Outcome<Unit> {
@@ -229,13 +241,76 @@ class MatchingGameViewModelTest {
     }
 
     @Test
-    fun `busca la misma emocion no se juega en Android`() = runTest {
+    fun `al emparejar no se piden imagenes por opcion`() = runTest {
+        val server = FakeGameServer()
+        val vm = linked(server)
+        assertTrue(server.optionCalls.isEmpty())
+        assertTrue(vm.optionImages.value.isEmpty())
+    }
+
+    @Test
+    fun `busca la misma emocion pide la modelo y cada cara de la ronda`() = runTest {
         val server = FakeGameServer(type = "similar")
         val vm = linked(server)
-        assertEquals(GameType.Similar, vm.active().view.game!!.type)
+        val game = vm.active().view.game!!
+        assertEquals(GameType.Similar, game.type)
+        assertEquals(listOf("Cara 1", "Cara 2", "Cara 3"), game.options.map { it.label })
+        assertEquals("0-100-0-1-0", vm.roundImage.value?.exposure)
+        assertEquals(listOf("1", "2", "3"), server.optionCalls)
+        assertEquals(setOf("1", "2", "3"), vm.optionImages.value.keys)
+        // Las caras no se vuelven a pedir en cada consulta del estado.
+        vm.refresh()
+        assertEquals(3, server.optionCalls.size)
+    }
+
+    @Test
+    fun `busca la misma emocion se juega con las mismas reglas hasta terminar`() = runTest {
+        val server = FakeGameServer(type = "similar")
+        val vm = linked(server)
+        vm.play(GameAction.Help)
+        vm.play(GameAction.Answer, "1")                          // la quitó la ayuda: no se envía
+        assertEquals(listOf(GameAction.Help to null), server.sent)
+        vm.play(GameAction.Answer, "3")
+        assertEquals(GameState.Retry, vm.active().view.game!!.state)
+        vm.play(GameAction.Answer, "2")
+        assertEquals("2", vm.active().view.game!!.answer)
+        val firstFaces = vm.optionImages.value
+        vm.play(GameAction.Next)
+        // Ronda nueva: imágenes nuevas, las anteriores ya no están.
+        assertEquals("0-100-0-1-1", vm.roundImage.value?.exposure)
+        assertEquals(6, server.optionCalls.size)
+        assertTrue(firstFaces !== vm.optionImages.value)
+        vm.play(GameAction.Answer, "2")
+        vm.play(GameAction.Next)
+        assertEquals(GameState.Finished, vm.active().view.game!!.state)
+        assertEquals(
+            listOf(GameAction.Help to null, GameAction.Answer to "3", GameAction.Answer to "2", GameAction.Next to null,
+                GameAction.Answer to "2", GameAction.Next to null),
+            server.recorded,
+        )
+        vm.play(GameAction.Next)                                // terminado: no se envía nada más
+        assertEquals(6, server.sent.size)
+    }
+
+    @Test
+    fun `busca la misma emocion no duplica un toque tras un corte`() = runTest {
+        val server = FakeGameServer(type = "similar")
+        val vm = linked(server)
+        server.loseNextResponse = true
+        vm.play(GameAction.Answer, "3")
+        vm.play(GameAction.Answer, "3")
+        assertEquals(listOf(GameAction.Answer to "3"), server.recorded)
+        assertEquals(GameState.Retry, vm.active().view.game!!.state)
+    }
+
+    @Test
+    fun `un juego desconocido no se juega ni pide imagenes`() = runTest {
+        val server = FakeGameServer(type = "nuevo")
+        val vm = linked(server)
         vm.play(GameAction.Answer, "happiness")
         assertTrue(server.sent.isEmpty())
         assertNull(vm.roundImage.value)
+        assertTrue(server.optionCalls.isEmpty())
     }
 
     @Test
@@ -244,6 +319,7 @@ class MatchingGameViewModelTest {
         assertNotNull(vm.roundImage.value)
         vm.leave()
         assertNull(vm.roundImage.value)
+        assertTrue(vm.optionImages.value.isEmpty())
     }
 
     @Test

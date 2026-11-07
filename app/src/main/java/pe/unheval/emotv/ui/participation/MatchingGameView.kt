@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -49,10 +50,12 @@ internal val EMOTION_PICTOGRAMS = mapOf(
 )
 
 /**
- * «Empareja la emoción», como en la web: la imagen de la ronda y un botón por
- * emoción, sin arrastrar. Si la persona elige otra, se le invita a mirar otra vez;
- * tras dos, se le muestra cuál es con su explicación. «Ayuda» quita una opción.
- * Sin puntaje: solo «Ronda 2 de 3». Lo que pasó lo dice el servidor en su estado.
+ * Juegos con botones (sin arrastrar), como en la web. «Empareja la emoción»: la
+ * imagen de la ronda y un botón por emoción. «Busca la misma emoción»: la imagen
+ * modelo arriba y un botón con cada cara para elegir la de la misma emoción. Si la
+ * persona elige otra, se le invita a mirar otra vez; tras dos, se le muestra cuál
+ * es con su explicación. «Ayuda» quita una opción. Sin puntaje: solo «Ronda 2 de
+ * 3». Lo que pasó lo dice el servidor en su estado.
  */
 @Composable
 internal fun MatchingGameView(
@@ -63,9 +66,10 @@ internal fun MatchingGameView(
     failed: Boolean,
     onAction: (GameAction, String?) -> Unit,
     modifier: Modifier = Modifier,
+    optionImages: Map<String, ByteArray> = emptyMap(),
 ) {
-    if (game.type != GameType.Matching) {
-        // «Busca la misma emoción» todavía no se juega en Android: quien conduce registra en la web.
+    if (!game.type.playable) {
+        // Un juego que este aplicativo no conoce: quien conduce registra en la web.
         Column(modifier) {
             Text(stringResource(R.string.participation_follow_conductor), style = EmotvType.Subtitle,
                 modifier = Modifier.testTag(ParticipationTags.GAME_ELSEWHERE))
@@ -74,17 +78,18 @@ internal fun MatchingGameView(
     }
     val playing = game.state.isPlaying
     val revealed = game.state.isRevealed
+    val similar = game.type == GameType.Similar
     Column(
         modifier.verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(EmotvSpacing.Sm),
     ) {
         Text(stringResource(R.string.game_round, game.number, game.total), style = EmotvType.Caption,
             color = EmotvColors.Slate, modifier = Modifier.testTag(ParticipationTags.GAME_ROUND))
-        val bitmap = rememberRoundBitmap(image)
+        val bitmap = rememberBitmap(image?.bytes)
         if (bitmap != null) {
             Image(
                 bitmap = bitmap,
-                contentDescription = stringResource(R.string.game_image),
+                contentDescription = stringResource(if (similar) R.string.game_model_image else R.string.game_image),
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp).testTag(ParticipationTags.GAME_IMAGE),
             )
@@ -94,7 +99,9 @@ internal fun MatchingGameView(
             GameOptionButton(
                 option = option,
                 isAnswer = revealed && game.answer == option.key,
-                pictogram = EMOTION_PICTOGRAMS[option.key].takeIf { pictograms },
+                // Al buscar la misma emoción no hay pictogramas: dirían la respuesta.
+                pictogram = EMOTION_PICTOGRAMS[option.key].takeIf { pictograms && !similar },
+                face = if (similar) optionImages[option.key] ?: EMPTY_FACE else null,
                 enabled = playing && option.available && !sending,
                 onClick = { onAction(GameAction.Answer, option.key) },
             )
@@ -135,6 +142,7 @@ private fun GameOptionButton(
     option: GameOption,
     isAnswer: Boolean,
     pictogram: String?,
+    face: ByteArray?,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
@@ -148,12 +156,31 @@ private fun GameOptionButton(
         .heightIn(min = EmotvSpacing.TouchTarget)
         .semantics { if (state != null) stateDescription = state }
         .testTag(ParticipationTags.gameOption(option.key))
+    val faceBitmap = rememberBitmap(face?.takeIf { it.isNotEmpty() })
     val content: @Composable () -> Unit = {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EmotvSpacing.Xs)) {
-            pictogram?.let { Text(it, modifier = Modifier.clearAndSetSemantics { }) }
-            Text(option.label)
-            // Visible para no depender del color.
-            if (isAnswer) Text(stringResource(R.string.game_is_this), modifier = Modifier.clearAndSetSemantics { })
+        if (face != null) {
+            // La cara para comparar; el botón se lee como «Cara 1», sin decir su emoción.
+            Column(horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(EmotvSpacing.Xs)) {
+                if (faceBitmap != null) {
+                    Image(faceBitmap, contentDescription = null, contentScale = ContentScale.Fit,
+                        modifier = Modifier.height(FACE_HEIGHT).clearAndSetSemantics { })
+                } else {
+                    androidx.compose.foundation.layout.Spacer(Modifier.height(FACE_HEIGHT))
+                }
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(EmotvSpacing.Xs)) {
+                    Text(option.label)
+                    if (isAnswer) Text(stringResource(R.string.game_is_this), modifier = Modifier.clearAndSetSemantics { })
+                }
+            }
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EmotvSpacing.Xs)) {
+                pictogram?.let { Text(it, modifier = Modifier.clearAndSetSemantics { }) }
+                Text(option.label)
+                // Visible para no depender del color.
+                if (isAnswer) Text(stringResource(R.string.game_is_this), modifier = Modifier.clearAndSetSemantics { })
+            }
         }
     }
     if (isAnswer) {
@@ -165,8 +192,8 @@ private fun GameOptionButton(
 
 /** Decodifica la imagen en memoria, reducida a un tamaño de pantalla. */
 @Composable
-private fun rememberRoundBitmap(image: RoundImage?): ImageBitmap? = remember(image) {
-    val bytes = image?.bytes ?: return@remember null
+private fun rememberBitmap(bytes: ByteArray?): ImageBitmap? = remember(bytes) {
+    if (bytes == null) return@remember null
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
     var sample = 1
@@ -178,3 +205,6 @@ private fun rememberRoundBitmap(image: RoundImage?): ImageBitmap? = remember(ima
 }
 
 private const val MAX_IMAGE_SIDE = 1024
+private val FACE_HEIGHT = 120.dp
+/** Mientras llega la imagen de una cara, el botón guarda su lugar. */
+private val EMPTY_FACE = ByteArray(0)

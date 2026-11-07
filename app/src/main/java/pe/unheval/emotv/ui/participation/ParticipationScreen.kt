@@ -85,12 +85,13 @@ fun ParticipationScreen(
     revision: Int,
     actions: ParticipationActions,
     roundImage: RoundImage? = null,
+    optionImages: Map<String, ByteArray> = emptyMap(),
 ) {
     // Lo que dibuja la persona no aparece en capturas ni en la vista de recientes.
     SecureWindow()
     when (state) {
         is ParticipationUiState.CodeEntry -> CodeEntry(state, actions)
-        is ParticipationUiState.Active -> ActiveView(state, board, revision, actions, roundImage)
+        is ParticipationUiState.Active -> ActiveView(state, board, revision, actions, roundImage, optionImages)
         ParticipationUiState.Ended -> FormScreen {
             PageTitle(stringResource(R.string.participation_ended_title), Modifier.semantics { heading() })
             PageSubtitle(stringResource(R.string.participation_ended_body))
@@ -153,6 +154,7 @@ private fun ActiveView(
     revision: Int,
     actions: ParticipationActions,
     roundImage: RoundImage?,
+    optionImages: Map<String, ByteArray>,
 ) {
     var confirmStop by rememberSaveable { mutableStateOf(false) }
     var confirmLeave by rememberSaveable { mutableStateOf(false) }
@@ -198,6 +200,7 @@ private fun ActiveView(
                 failed = state.gameFailed,
                 onAction = actions.onGame,
                 modifier = Modifier.weight(1f),
+                optionImages = optionImages,
             )
         } else {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {

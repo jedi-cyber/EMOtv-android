@@ -337,6 +337,7 @@
     <string name="drawing_received">Listo.</string>
     <string name="game_round">Ronda %1$d de %2$d</string>
     <string name="game_image">Cara de la ronda</string>
+    <string name="game_model_image">Cara de arriba, la que hay que comparar</string>
     <string name="game_help">Ayuda</string>
     <string name="game_next">Siguiente</string>
     <string name="game_finish">Terminar el juego</string>

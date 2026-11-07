@@ -53,9 +53,11 @@ data class DrawingStep(
 
 data class EmotionOption(val key: String, val label: String)
 
-/** Juegos del servidor; solo [Matching] se juega en Android (4.11). */
+/** Juegos del servidor: [Matching] (4.11) y [Similar] (4.12) se juegan en Android. */
 enum class GameType {
     Matching, Similar, Other;
+
+    val playable: Boolean get() = this != Other
 
     companion object {
         fun from(value: String): GameType = when (value) {

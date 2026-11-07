@@ -29,7 +29,11 @@ interface ParticipationApi {
     @GET("participant-view/{token}/stimulus")
     suspend fun stimulus(@Path("token") token: String): ResponseBody
 
-    /** Juego de emparejar (4.11): elegir una emoción, pedir ayuda o pasar de ronda. */
+    /** Al buscar la misma emoción (4.12): la imagen de una cara de la ronda en curso. */
+    @GET("participant-view/{token}/game/option/{key}")
+    suspend fun gameOption(@Path("token") token: String, @Path("key") key: String): ResponseBody
+
+    /** Juegos (4.11 y 4.12): elegir una opción, pedir ayuda o pasar de ronda. */
     @POST("participant-view/{token}/game")
     suspend fun game(@Path("token") token: String, @Body body: GameActionDto): ReceivedDto
 

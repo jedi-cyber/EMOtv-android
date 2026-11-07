@@ -16,4 +16,6 @@ interface ParticipationRepository {
     suspend fun game(token: String, action: GameAction, expression: String? = null): Outcome<Unit>
     /** La imagen de la ronda en curso, en memoria. */
     suspend fun stimulus(token: String): Outcome<ByteArray>
+    /** Al buscar la misma emoción: la imagen de una cara de la ronda en curso, en memoria. */
+    suspend fun gameOption(token: String, key: String): Outcome<ByteArray>
 }

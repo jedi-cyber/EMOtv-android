@@ -35,7 +35,12 @@ import pe.unheval.emotv.domain.repository.ParticipationRepository
 import pe.unheval.emotv.ui.theme.EMOtvTheme
 
 /** Servidor falso con las reglas del juego web; ninguna prueba llama al servidor real. */
-private class FakeGame : ParticipationRepository {
+private class FakeGame(val similar: Boolean = false) : ParticipationRepository {
+    // Al buscar la misma emoción, la clave es el lugar de la cara («Cara 2») y no dice su emoción.
+    private val target = if (similar) "2" else "happiness"
+    private val labels = if (similar) listOf("1" to "Cara 1", "2" to "Cara 2", "3" to "Cara 3")
+        else listOf("sadness" to "Tristeza", "happiness" to "Alegría", "anger" to "Enojo")
+    val faces = mutableListOf<String>()
     var state = GameState.Playing
     val tried = mutableListOf<String>()
     var helped = false
@@ -48,12 +53,15 @@ private class FakeGame : ParticipationRepository {
         activity = ParticipantActivity(ActivityKind.Game, "Empareja la emoción", 1, 1),
         drawing = null,
         game = MatchingGame(
-            round = "0-1-$round", number = round + 1, total = 2, type = GameType.Matching,
-            question = "¿Qué emoción muestra esta cara?", state = state,
-            options = listOf("sadness" to "Tristeza", "happiness" to "Alegría", "anger" to "Enojo").map { (key, label) ->
-                GameOption(key, label, key !in tried && !(helped && key == "anger"))
+            round = "0-1-$round", number = round + 1, total = 2,
+            type = if (similar) GameType.Similar else GameType.Matching,
+            question = if (similar) "¿Qué cara muestra la misma emoción que la de arriba?"
+                else "¿Qué emoción muestra esta cara?",
+            state = state,
+            options = labels.map { (key, label) ->
+                GameOption(key, label, key !in tried && !(helped && key == labels.last().first))
             },
-            answer = "happiness".takeIf { state.isRevealed },
+            answer = target.takeIf { state.isRevealed },
             message = when (state) {
                 GameState.Retry -> "Mira otra vez la cara."
                 GameState.Matched -> "Lo encontraste: alegría."
@@ -70,10 +78,16 @@ private class FakeGame : ParticipationRepository {
     override suspend fun answer(token: String, expression: String): Outcome<Unit> = Outcome.Success(Unit)
     override suspend fun stop(token: String): Outcome<Unit> = Outcome.Success(Unit)
 
-    override suspend fun stimulus(token: String): Outcome<ByteArray> {
+    override suspend fun stimulus(token: String): Outcome<ByteArray> = Outcome.Success(png())
+
+    override suspend fun gameOption(token: String, key: String): Outcome<ByteArray> {
+        faces += key
+        return Outcome.Success(png())
+    }
+
+    private fun png(): ByteArray {
         val bitmap = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888)
-        return Outcome.Success(ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
-            .toByteArray())
+        return ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
     }
 
     override suspend fun game(token: String, action: GameAction, expression: String?): Outcome<Unit> {
@@ -81,11 +95,12 @@ private class FakeGame : ParticipationRepository {
             GameAction.Answer -> {
                 if (!state.isPlaying) return Outcome.Failure(AppError.Server(409, null, null))
                 if (expression in tried) return Outcome.Failure(AppError.Server(422, null, null))
-                if (expression == "happiness") state = GameState.Matched
+                if (expression == target) state = GameState.Matched
                 else { tried += expression!!; state = GameState.Retry }
             }
             GameAction.Help -> helped = true
-            GameAction.Next -> { round += 1; state = GameState.Playing; tried.clear(); helped = false }
+            GameAction.Next -> if (round == 1) state = GameState.Finished
+                else { round += 1; state = GameState.Playing; tried.clear(); helped = false }
         }
         recorded += action
         if (loseNextResponse) { loseNextResponse = false; return Outcome.Failure(AppError.Network) }
@@ -99,17 +114,23 @@ class MatchingGameScreenTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private val fake = FakeGame()
-    private val viewModel = ParticipationViewModel(fake)
+    private var fake = FakeGame()
+    private var viewModel = ParticipationViewModel(fake)
 
-    private fun show() {
+    private fun show(similar: Boolean = false) {
+        if (similar) {
+            fake = FakeGame(similar = true)
+            viewModel = ParticipationViewModel(fake)
+        }
         compose.setContent {
             EMOtvTheme {
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
                 val revision by viewModel.boardRevision.collectAsStateWithLifecycle()
                 val image by viewModel.roundImage.collectAsStateWithLifecycle()
+                val faces by viewModel.optionImages.collectAsStateWithLifecycle()
                 ParticipationScreen(
                     state = state, board = viewModel.board, revision = revision, roundImage = image,
+                    optionImages = faces,
                     actions = ParticipationActions(
                         onCodeChange = viewModel::onCodeChange, onSubmitCode = viewModel::submitCode,
                         onGame = viewModel::play,
@@ -173,6 +194,70 @@ class MatchingGameScreenTest {
         compose.waitForIdle()
         assertEquals(listOf(GameAction.Answer), fake.recorded)
         compose.onNodeWithText("Mira otra vez la cara.").assertIsDisplayed()
+    }
+}
+
+@RunWith(AndroidJUnit4::class)
+class SimilarGameScreenTest {
+
+    @get:Rule
+    val compose = createComposeRule()
+
+    private val fake = FakeGame(similar = true)
+    private val viewModel = ParticipationViewModel(fake)
+
+    private fun show() {
+        compose.setContent {
+            EMOtvTheme {
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
+                val revision by viewModel.boardRevision.collectAsStateWithLifecycle()
+                val image by viewModel.roundImage.collectAsStateWithLifecycle()
+                val faces by viewModel.optionImages.collectAsStateWithLifecycle()
+                ParticipationScreen(
+                    state = state, board = viewModel.board, revision = revision, roundImage = image,
+                    optionImages = faces,
+                    actions = ParticipationActions(
+                        onCodeChange = viewModel::onCodeChange, onSubmitCode = viewModel::submitCode,
+                        onGame = viewModel::play,
+                    ),
+                )
+            }
+        }
+        compose.onNodeWithTag(ParticipationTags.CODE).performTextInput("K7MP2QXR")
+        compose.onNodeWithTag(ParticipationTags.OPEN).performClick()
+        compose.waitForIdle()
+    }
+
+    @Test
+    fun seEligeLaCaraDeLaMismaEmocionHastaTerminar() {
+        show()
+        compose.onNodeWithText("Ronda 1 de 2").assertIsDisplayed()
+        compose.onNodeWithTag(ParticipationTags.GAME_IMAGE)
+            .assertContentDescriptionEquals("Cara de arriba, la que hay que comparar")
+        assertEquals(listOf("1", "2", "3"), fake.faces)
+        // Cada botón se lee «Cara 1», sin decir su emoción y sin la imagen.
+        compose.onNodeWithTag(ParticipationTags.gameOption("1"))
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Text,
+                listOf(androidx.compose.ui.text.AnnotatedString("Cara 1"))))
+
+        compose.onNodeWithTag(ParticipationTags.gameOption("1")).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(ParticipationTags.gameOption("1")).assertIsNotEnabled()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "No disponible"))
+        compose.onNodeWithTag(ParticipationTags.gameOption("2")).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(ParticipationTags.gameOption("2"))
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Es esta"))
+        compose.onNodeWithTag(ParticipationTags.GAME_NEXT).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Ronda 2 de 2").assertIsDisplayed()
+        compose.onNodeWithTag(ParticipationTags.gameOption("2")).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Terminar el juego").assertIsDisplayed().performClick()
+        compose.waitForIdle()
+        assertEquals(GameState.Finished, fake.state)
+        assertEquals(listOf(GameAction.Answer, GameAction.Answer, GameAction.Next, GameAction.Answer, GameAction.Next),
+            fake.recorded)
     }
 }
 
