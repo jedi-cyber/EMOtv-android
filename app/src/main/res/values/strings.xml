@@ -291,4 +291,58 @@
     <string name="recognition_outcome_chose">eligió %1$s</string>
     <string name="recognition_outcome_chose_in">eligió %1$s en %2$s s</string>
     <string name="recognition_outcome_timed_out">terminó el tiempo sin respuesta</string>
+    <string name="action_cancel">Cancelar</string>
+
+    <!-- Pantalla de la persona (vinculada desde la web con un código) -->
+    <string name="login_open_participation">Abrir una actividad con código</string>
+    <string name="participation_title">Pantalla de la persona</string>
+    <string name="participation_subtitle">Escribe el código que te dio quien conduce la sesión en la web.</string>
+    <string name="participation_code_label">Código</string>
+    <string name="participation_open">Abrir la actividad</string>
+    <string name="participation_back">Volver</string>
+    <string name="participation_privacy">No necesitas iniciar sesión. Esta pantalla no usa la cámara ni guarda nada en el dispositivo.</string>
+    <string name="participation_code_error_title">No se pudo abrir la actividad</string>
+    <string name="participation_code_invalid">El código no es válido o ya venció. Pide uno nuevo a quien conduce la sesión.</string>
+    <string name="participation_offline">No hay conexión con el servidor. Revisa la red y vuelve a intentarlo.</string>
+    <string name="participation_unexpected">El servidor no respondió como se esperaba.</string>
+    <string name="participation_activity_default">Actividad</string>
+    <string name="participation_step">Paso %1$d de %2$d</string>
+    <string name="participation_follow_conductor">Sigue las indicaciones de quien conduce la sesión.</string>
+    <string name="participation_reconnecting">Se perdió la conexión. Volviendo a intentar…</string>
+    <string name="participation_stop">Quiero parar</string>
+    <string name="participation_stop_title">¿Quieres parar?</string>
+    <string name="participation_stop_body">La sesión termina ahora para todos.</string>
+    <string name="participation_stop_failed">No se pudo avisar que quieres parar. Avisa a quien conduce la sesión.</string>
+    <string name="participation_leave">Salir</string>
+    <string name="participation_leave_title">¿Salir de la actividad?</string>
+    <string name="participation_leave_body">La sesión sigue en la web. Para volver, quien conduce te dará otro código.</string>
+    <string name="participation_leave_drawing_body">El dibujo se borrará. La sesión sigue en la web y, para volver, quien conduce te dará otro código.</string>
+    <string name="participation_ended_title">La sesión terminó. Gracias.</string>
+    <string name="participation_ended_body">Puedes devolver el dispositivo a quien conduce la sesión.</string>
+    <string name="participation_back_home">Volver al inicio</string>
+
+    <!-- Dibujo táctil: no se envía ni se guarda; solo la emoción elegida -->
+    <string name="drawing_canvas_empty">Lienzo en blanco: dibuja con el dedo o el lápiz</string>
+    <string name="drawing_canvas_with_drawing">Lienzo con tu dibujo</string>
+    <string name="drawing_eraser">Borrador</string>
+    <string name="drawing_undo">Deshacer</string>
+    <string name="drawing_clear">Limpiar</string>
+    <string name="drawing_clear_title">Limpiar el lienzo</string>
+    <string name="drawing_clear_body">Se borrará todo el dibujo. ¿Quieres limpiarlo?</string>
+    <string name="drawing_finish">Terminé</string>
+    <string name="drawing_keep_drawing">Seguir dibujando</string>
+    <string name="drawing_privacy">El dibujo se queda en esta pantalla: no se envía ni se guarda. Solo se registra la emoción que elijas.</string>
+    <string name="drawing_send_failed">No se pudo enviar tu elección. Intenta de nuevo o avisa a quien conduce la sesión.</string>
+    <string name="drawing_time_up">Terminó el tiempo para dibujar.</string>
+    <string name="drawing_received">Listo.</string>
+    <string name="ink_black">Negro</string>
+    <string name="ink_red">Rojo</string>
+    <string name="ink_blue">Azul</string>
+    <string name="ink_green">Verde</string>
+    <string name="ink_yellow">Amarillo</string>
+    <string name="ink_purple">Morado</string>
+    <string name="ink_brown">Café</string>
+    <string name="ink_thin">Fino</string>
+    <string name="ink_medium">Medio</string>
+    <string name="ink_thick">Grueso</string>
 </resources>

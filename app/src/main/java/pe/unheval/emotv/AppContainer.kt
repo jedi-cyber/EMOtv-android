@@ -13,12 +13,14 @@ import pe.unheval.emotv.data.remote.AccessTokenHolder
 import pe.unheval.emotv.data.remote.EmotvApi
 import pe.unheval.emotv.data.remote.NetworkFactory
 import pe.unheval.emotv.data.repository.AuthRepositoryImpl
+import pe.unheval.emotv.data.repository.ParticipationRepositoryImpl
 import pe.unheval.emotv.data.repository.ReportRepositoryImpl
 import pe.unheval.emotv.data.repository.SessionRepositoryImpl
 import pe.unheval.emotv.data.repository.StatisticsRepositoryImpl
 import pe.unheval.emotv.data.repository.StatusRepositoryImpl
 import pe.unheval.emotv.data.repository.SummaryRepositoryImpl
 import pe.unheval.emotv.domain.repository.AuthRepository
+import pe.unheval.emotv.domain.repository.ParticipationRepository
 import pe.unheval.emotv.domain.repository.ReportRepository
 import pe.unheval.emotv.domain.repository.SessionRepository
 import pe.unheval.emotv.domain.repository.StatisticsRepository
@@ -54,6 +56,10 @@ class AppContainer(context: Context) {
     val sessionRepository: SessionRepository = SessionRepositoryImpl(api, authRepository)
     val reportRepository: ReportRepository = ReportRepositoryImpl(api, authRepository)
     val statisticsRepository: StatisticsRepository = StatisticsRepositoryImpl(api, authRepository)
+
+    // La pantalla de la persona va en un cliente propio, sin el token de la cuenta.
+    val participationRepository: ParticipationRepository =
+        ParticipationRepositoryImpl(NetworkFactory.createParticipationApi(BuildConfig.API_BASE_URL))
 
     val checkServerStatus = CheckServerStatusUseCase(statusRepository, BuildConfig.VERSION_NAME)
     val restoreSession = RestoreSessionUseCase(authRepository)

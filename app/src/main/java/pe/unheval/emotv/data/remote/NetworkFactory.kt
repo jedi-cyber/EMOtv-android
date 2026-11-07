@@ -25,4 +25,22 @@ object NetworkFactory {
             .build()
             .create(EmotvApi::class.java)
     }
+
+    /**
+     * Cliente de la pantalla de la persona: sin [AuthInterceptor], para que el token de
+     * la cuenta nunca acompañe al enlace de la persona.
+     */
+    fun createParticipationApi(baseUrl: String): ParticipationApi {
+        val client = OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .writeTimeout(10, TimeUnit.SECONDS)
+            .build()
+        return Retrofit.Builder()
+            .baseUrl(baseUrl)
+            .client(client)
+            .addConverterFactory(ApiJson.asConverterFactory("application/json".toMediaType()))
+            .build()
+            .create(ParticipationApi::class.java)
+    }
 }
