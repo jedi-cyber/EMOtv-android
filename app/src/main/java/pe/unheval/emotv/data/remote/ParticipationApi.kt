@@ -2,6 +2,7 @@ package pe.unheval.emotv.data.remote
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import okhttp3.ResponseBody
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -24,6 +25,14 @@ interface ParticipationApi {
     @POST("participant-view/{token}/answer")
     suspend fun answer(@Path("token") token: String, @Body body: AnswerRequestDto): ReceivedDto
 
+    /** La imagen de la ronda (un estímulo, nunca la de una persona). Solo en memoria. */
+    @GET("participant-view/{token}/stimulus")
+    suspend fun stimulus(@Path("token") token: String): ResponseBody
+
+    /** Juego de emparejar (4.11): elegir una emoción, pedir ayuda o pasar de ronda. */
+    @POST("participant-view/{token}/game")
+    suspend fun game(@Path("token") token: String, @Body body: GameActionDto): ReceivedDto
+
     @POST("participant-view/{token}/stop")
     suspend fun stop(@Path("token") token: String): StoppedDto
 }
@@ -45,7 +54,40 @@ data class ParticipantStateDto(
     @SerialName("remaining_seconds") val remainingSeconds: Double? = null,
     val activity: ActivityDto? = null,
     val drawing: ParticipantDrawingDto? = null,
+    val stimulus: StimulusDto? = null,
+    val game: ParticipantGameDto? = null,
+    val supports: SupportsDto? = null,
 )
+
+/** Identificador de la exposición: cambia con cada imagen (en un juego, con cada ronda). */
+@Serializable
+data class StimulusDto(val exposure: String)
+
+@Serializable
+data class SupportsDto(val pictograms: Boolean = false)
+
+@Serializable
+data class ParticipantGameDto(
+    val round: String,
+    val number: Int,
+    val total: Int,
+    @SerialName("game_type") val gameType: String = "matching",
+    val question: String,
+    val state: String,
+    val options: List<GameOptionDto>,
+    val answer: String? = null,
+    val message: String? = null,
+    val explanation: String? = null,
+    @SerialName("can_help") val canHelp: Boolean = false,
+    @SerialName("last_round") val lastRound: Boolean = false,
+)
+
+@Serializable
+data class GameOptionDto(val key: String, val label: String, val available: Boolean = true)
+
+/** `expression` solo al elegir una emoción; el servidor rechaza cualquier otro campo. */
+@Serializable
+data class GameActionDto(val action: String, val expression: String? = null)
 
 @Serializable
 data class ActivityDto(

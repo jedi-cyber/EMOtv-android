@@ -335,6 +335,15 @@
     <string name="drawing_send_failed">No se pudo enviar tu elección. Intenta de nuevo o avisa a quien conduce la sesión.</string>
     <string name="drawing_time_up">Terminó el tiempo para dibujar.</string>
     <string name="drawing_received">Listo.</string>
+    <string name="game_round">Ronda %1$d de %2$d</string>
+    <string name="game_image">Cara de la ronda</string>
+    <string name="game_help">Ayuda</string>
+    <string name="game_next">Siguiente</string>
+    <string name="game_finish">Terminar el juego</string>
+    <string name="game_is_this">✓ Es esta</string>
+    <string name="game_option_answer">Es esta</string>
+    <string name="game_option_unavailable">No disponible</string>
+    <string name="game_send_failed">No se pudo enviar. Toca otra vez o avisa a quien conduce la sesión.</string>
     <string name="ink_black">Negro</string>
     <string name="ink_red">Rojo</string>
     <string name="ink_blue">Azul</string>

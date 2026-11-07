@@ -15,6 +15,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import pe.unheval.emotv.EmotvApplication
 import pe.unheval.emotv.domain.model.AppError
+import pe.unheval.emotv.domain.model.GameAction
+import pe.unheval.emotv.domain.model.GameType
 import pe.unheval.emotv.domain.model.Outcome
 import pe.unheval.emotv.domain.model.ParticipantView
 import pe.unheval.emotv.domain.repository.ParticipationRepository
@@ -38,10 +40,17 @@ sealed interface ParticipationUiState {
         val reconnecting: Boolean = false,
         /** «Quiero parar» no llegó al servidor: hay que avisar a quien conduce. */
         val stopFailed: Boolean = false,
+        /** Una acción del juego va en camino: no se envía otra hasta saber qué pasó. */
+        val gameSending: Boolean = false,
+        /** La última acción del juego no llegó: se puede tocar otra vez. */
+        val gameFailed: Boolean = false,
     ) : ParticipationUiState
 
     data object Ended : ParticipationUiState
 }
+
+/** La imagen de la ronda (un estímulo de la sesión), solo en memoria y solo la de ahora. */
+class RoundImage(val exposure: String, val bytes: ByteArray)
 
 /**
  * Pantalla de la persona en Android. El enlace y el dibujo viven solo aquí, en
@@ -62,6 +71,11 @@ class ParticipationViewModel(
     private val revisionState = MutableStateFlow(0)
     /** Cambia con cada trazo o herramienta: el lienzo se vuelve a dibujar. */
     val boardRevision: StateFlow<Int> = revisionState.asStateFlow()
+
+    private val imageState = MutableStateFlow<RoundImage?>(null)
+    /** La imagen del juego en curso; se borra al cambiar de ronda, al terminar y al salir. */
+    val roundImage: StateFlow<RoundImage?> = imageState.asStateFlow()
+    private var loadingExposure: String? = null
 
     private var token: String? = null
     private var round: String? = null
@@ -156,7 +170,67 @@ class ParticipationViewModel(
             sending = previous?.sending ?: false,
             sendFailed = previous?.sendFailed ?: false,
             stopFailed = previous?.stopFailed ?: false,
+            gameSending = previous?.gameSending ?: false,
+            gameFailed = (previous?.gameFailed ?: false) && previous?.view?.game?.round == view.game?.round,
         )
+        syncRoundImage(view)
+    }
+
+    // --- Juego de emparejar --------------------------------------------------------------
+
+    /** Pide la imagen cuando cambia la ronda y suelta la anterior. */
+    private fun syncRoundImage(view: ParticipantView) {
+        val exposure = view.exposure.takeIf { view.game?.type == GameType.Matching }
+        if (exposure == null) {
+            imageState.value = null
+            loadingExposure = null
+            return
+        }
+        if (imageState.value?.exposure == exposure || loadingExposure == exposure) return
+        imageState.value = null
+        loadingExposure = exposure
+        val link = token ?: return
+        viewModelScope.launch {
+            val result = repository.stimulus(link)
+            // Si mientras tanto cambió la ronda, esta imagen ya no sirve.
+            if (loadingExposure != exposure) return@launch
+            loadingExposure = null
+            if (result is Outcome.Success) imageState.value = RoundImage(exposure, result.value)
+        }
+    }
+
+    /**
+     * Una acción del juego, como en la web. No se envía si otra va en camino ni si
+     * no corresponde a lo que se ve. Un `409` o `422` quiere decir que el servidor
+     * ya la registró (un reintento tras un corte) o que la ronda cambió: no se
+     * repite, se vuelve a leer el estado.
+     */
+    fun play(action: GameAction, expression: String? = null) {
+        val current = active() ?: return
+        val game = current.view.game ?: return
+        val link = token ?: return
+        if (current.gameSending || game.type != GameType.Matching) return
+        val allowed = when (action) {
+            GameAction.Answer -> game.state.isPlaying && game.options.any { it.key == expression && it.available }
+            GameAction.Help -> game.canHelp
+            GameAction.Next -> game.state.isRevealed
+        }
+        if (!allowed) return
+        state.value = current.copy(gameSending = true, gameFailed = false)
+        viewModelScope.launch {
+            val result = repository.game(link, action, expression)
+            val failure = (result as? Outcome.Failure)?.error
+            when {
+                failure != null && failure.isGone() -> return@launch end()
+                failure == null || failure.isAlreadyRecorded() || failure.isNotApplicable() -> {
+                    state.update { (it as? ParticipationUiState.Active)?.copy(gameSending = false) ?: it }
+                    refresh()
+                }
+                else -> state.update {
+                    (it as? ParticipationUiState.Active)?.copy(gameSending = false, gameFailed = true) ?: it
+                }
+            }
+        }
     }
 
     // --- Dibujo --------------------------------------------------------------------------
@@ -238,6 +312,7 @@ class ParticipationViewModel(
         onStop()
         token = null
         discardDrawing()
+        discardImage()
     }
 
     private fun end() {
@@ -246,7 +321,13 @@ class ParticipationViewModel(
         token = null
         round = null
         discardDrawing()
+        discardImage()
         state.value = ParticipationUiState.Ended
+    }
+
+    private fun discardImage() {
+        imageState.value = null
+        loadingExposure = null
     }
 
     private fun discardDrawing() {
@@ -257,6 +338,7 @@ class ParticipationViewModel(
     override fun onCleared() {
         token = null
         board.clear()
+        discardImage()
     }
 
     companion object {
@@ -277,3 +359,6 @@ private fun AppError.isGone(): Boolean = this is AppError.Server && (httpStatus 
 
 /** El servidor ya tenía la respuesta (por ejemplo, al reintentar tras un corte). */
 private fun AppError.isAlreadyRecorded(): Boolean = this is AppError.Server && httpStatus == 409
+
+/** La opción ya no se muestra (ya la eligió, o la quitó la ayuda): no se registra otra vez. */
+private fun AppError.isNotApplicable(): Boolean = this is AppError.Server && httpStatus == 422

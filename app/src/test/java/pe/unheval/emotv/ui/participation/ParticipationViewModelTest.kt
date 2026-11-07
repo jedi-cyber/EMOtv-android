@@ -15,6 +15,7 @@ import pe.unheval.emotv.data.remote.ParticipantStateDto
 import pe.unheval.emotv.data.repository.toDomain
 import pe.unheval.emotv.domain.model.ActivityKind
 import pe.unheval.emotv.domain.model.AppError
+import pe.unheval.emotv.domain.model.GameAction
 import pe.unheval.emotv.domain.model.Outcome
 import pe.unheval.emotv.domain.model.ParticipantView
 import pe.unheval.emotv.domain.repository.ParticipationRepository
@@ -36,6 +37,9 @@ private class FakeParticipation : ParticipationRepository {
     override suspend fun answer(token: String, expression: String): Outcome<Unit> =
         answerResult.also { answers += token to expression }
     override suspend fun stop(token: String): Outcome<Unit> = stopResult.also { stops += 1 }
+    override suspend fun game(token: String, action: GameAction, expression: String?): Outcome<Unit> =
+        Outcome.Success(Unit)
+    override suspend fun stimulus(token: String): Outcome<ByteArray> = Outcome.Success(ByteArray(0))
 }
 
 private fun stateDto(

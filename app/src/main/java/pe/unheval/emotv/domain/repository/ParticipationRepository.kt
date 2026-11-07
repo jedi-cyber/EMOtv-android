@@ -1,5 +1,6 @@
 package pe.unheval.emotv.domain.repository
 
+import pe.unheval.emotv.domain.model.GameAction
 import pe.unheval.emotv.domain.model.Outcome
 import pe.unheval.emotv.domain.model.ParticipantView
 
@@ -11,4 +12,8 @@ interface ParticipationRepository {
     /** Envía solo la emoción elegida. */
     suspend fun answer(token: String, expression: String): Outcome<Unit>
     suspend fun stop(token: String): Outcome<Unit>
+    /** Una acción del juego; [expression] es la clave de la emoción al elegir. */
+    suspend fun game(token: String, action: GameAction, expression: String? = null): Outcome<Unit>
+    /** La imagen de la ronda en curso, en memoria. */
+    suspend fun stimulus(token: String): Outcome<ByteArray>
 }

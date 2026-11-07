@@ -23,6 +23,7 @@ import org.junit.runner.RunWith
 import pe.unheval.emotv.domain.model.ActivityKind
 import pe.unheval.emotv.domain.model.DrawingStep
 import pe.unheval.emotv.domain.model.EmotionOption
+import pe.unheval.emotv.domain.model.GameAction
 import pe.unheval.emotv.domain.model.Outcome
 import pe.unheval.emotv.domain.model.ParticipantActivity
 import pe.unheval.emotv.domain.model.ParticipantView
@@ -55,6 +56,9 @@ private class FakeParticipation : ParticipationRepository {
         return Outcome.Success(Unit)
     }
     override suspend fun stop(token: String): Outcome<Unit> = Outcome.Success(Unit)
+    override suspend fun game(token: String, action: GameAction, expression: String?): Outcome<Unit> =
+        Outcome.Success(Unit)
+    override suspend fun stimulus(token: String): Outcome<ByteArray> = Outcome.Success(ByteArray(0))
 }
 
 @RunWith(AndroidJUnit4::class)

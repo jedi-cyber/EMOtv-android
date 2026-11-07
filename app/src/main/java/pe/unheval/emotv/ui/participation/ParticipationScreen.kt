@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import pe.unheval.emotv.R
 import pe.unheval.emotv.domain.model.AppError
 import pe.unheval.emotv.domain.model.DrawingStep
+import pe.unheval.emotv.domain.model.GameAction
 import pe.unheval.emotv.ui.components.Callout
 import pe.unheval.emotv.ui.components.CalloutTone
 import pe.unheval.emotv.ui.components.EmotvTextField
@@ -72,6 +73,7 @@ data class ParticipationActions(
     val onStrokeMove: (Long, Float, Float) -> Unit = { _, _, _ -> },
     val onStrokeEnd: (Long) -> Unit = {},
     val onStrokeCancel: () -> Unit = {},
+    val onGame: (GameAction, String?) -> Unit = { _, _ -> },
     val onStop: () -> Unit = {},
     val onExit: () -> Unit = {},
 )
@@ -82,12 +84,13 @@ fun ParticipationScreen(
     board: DrawingBoard,
     revision: Int,
     actions: ParticipationActions,
+    roundImage: RoundImage? = null,
 ) {
     // Lo que dibuja la persona no aparece en capturas ni en la vista de recientes.
     SecureWindow()
     when (state) {
         is ParticipationUiState.CodeEntry -> CodeEntry(state, actions)
-        is ParticipationUiState.Active -> ActiveView(state, board, revision, actions)
+        is ParticipationUiState.Active -> ActiveView(state, board, revision, actions, roundImage)
         ParticipationUiState.Ended -> FormScreen {
             PageTitle(stringResource(R.string.participation_ended_title), Modifier.semantics { heading() })
             PageSubtitle(stringResource(R.string.participation_ended_body))
@@ -149,6 +152,7 @@ private fun ActiveView(
     board: DrawingBoard,
     revision: Int,
     actions: ParticipationActions,
+    roundImage: RoundImage?,
 ) {
     var confirmStop by rememberSaveable { mutableStateOf(false) }
     var confirmLeave by rememberSaveable { mutableStateOf(false) }
@@ -185,6 +189,16 @@ private fun ActiveView(
         if (drawing != null) {
             DrawingStepView(drawing, state, board, revision, actions, onClear = { confirmClear = true },
                 modifier = Modifier.weight(1f))
+        } else if (state.view.game != null) {
+            MatchingGameView(
+                game = state.view.game,
+                image = roundImage,
+                pictograms = state.view.pictograms,
+                sending = state.gameSending,
+                failed = state.gameFailed,
+                onAction = actions.onGame,
+                modifier = Modifier.weight(1f),
+            )
         } else {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 Text(
@@ -361,5 +375,12 @@ object ParticipationTags {
     fun color(key: String) = "drawing_color_$key"
     fun size(key: String) = "drawing_size_$key"
     fun option(key: String) = "drawing_option_$key"
+    const val GAME_ROUND = "game_round"
+    const val GAME_IMAGE = "game_image"
+    const val GAME_FEEDBACK = "game_feedback"
+    const val GAME_NEXT = "game_next"
+    const val GAME_HELP = "game_help"
+    const val GAME_ELSEWHERE = "game_elsewhere"
+    fun gameOption(key: String) = "game_option_$key"
 }
 

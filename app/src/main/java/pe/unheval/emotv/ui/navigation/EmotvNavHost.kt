@@ -119,12 +119,14 @@ fun EmotvNavHost(
             val viewModel: ParticipationViewModel = viewModel(factory = ParticipationViewModel.Factory)
             val state by viewModel.uiState.collectAsStateWithLifecycle()
             val revision by viewModel.boardRevision.collectAsStateWithLifecycle()
+            val roundImage by viewModel.roundImage.collectAsStateWithLifecycle()
             LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.onStart() }
             LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.onStop() }
             ParticipationScreen(
                 state = state,
                 board = viewModel.board,
                 revision = revision,
+                roundImage = roundImage,
                 actions = ParticipationActions(
                     onCodeChange = viewModel::onCodeChange,
                     onSubmitCode = viewModel::submitCode,
@@ -140,6 +142,7 @@ fun EmotvNavHost(
                     onStrokeMove = viewModel::strokeMove,
                     onStrokeEnd = viewModel::strokeEnd,
                     onStrokeCancel = viewModel::strokeCancel,
+                    onGame = viewModel::play,
                     onStop = viewModel::stopSession,
                     onExit = {
                         viewModel.leave()
