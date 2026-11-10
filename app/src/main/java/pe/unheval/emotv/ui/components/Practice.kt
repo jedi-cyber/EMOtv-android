@@ -12,7 +12,8 @@ import pe.unheval.emotv.domain.model.PracticeTargetResult
 import pe.unheval.emotv.domain.model.PracticeTotals
 import pe.unheval.emotv.ui.theme.EmotvColors
 import pe.unheval.emotv.ui.theme.EmotvType
-import java.text.NumberFormat
+import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
 import java.util.Locale
 
 /** Claves de las barras de práctica, para [BarChartTags.row]. */
@@ -73,7 +74,7 @@ fun practiceBar(key: String, label: String, counts: PracticeCounts, prefix: Stri
 
 /** Texto de un ejercicio en la línea de tiempo: la expresión pedida y lo que se registró. */
 @Composable
-fun practiceOutcomeText(target: String, outcome: PracticeOutcome?, secondsToAchieve: Double?): String {
+fun practiceOutcomeText(target: String, outcome: PracticeOutcome?, secondsToAchieve: Double?, imitate: Boolean = false): String {
     val result = when (outcome) {
         PracticeOutcome.Achieved -> secondsToAchieve
             ?.let { stringResource(R.string.practice_outcome_achieved_in, formatSecondsDecimal(it)) }
@@ -83,10 +84,17 @@ fun practiceOutcomeText(target: String, outcome: PracticeOutcome?, secondsToAchi
         PracticeOutcome.Stopped -> stringResource(R.string.practice_outcome_stopped)
         PracticeOutcome.Unknown, null -> stringResource(R.string.practice_outcome_none)
     }
-    return stringResource(R.string.timeline_practice, expressionLabel(target), result)
+    return stringResource(if (imitate) R.string.timeline_imitation else R.string.timeline_practice, expressionLabel(target), result)
 }
 
-private val SecondsFormat = Locale.forLanguageTag("es-PE")
+// Coma decimal fija, como en las frases del servidor («4,5 s»): el separador de es-PE cambia según
+// la versión de ICU del dispositivo y algunos teléfonos escriben «4.5».
+private val DecimalSymbols = DecimalFormatSymbols(Locale.forLanguageTag("es-PE")).apply {
+    decimalSeparator = ','
+    groupingSeparator = '.'
+}
 
-fun formatSecondsDecimal(seconds: Double): String =
-    NumberFormat.getNumberInstance(SecondsFormat).apply { maximumFractionDigits = 1 }.format(seconds)
+/** Número con un decimal como máximo y coma decimal («4,5»). */
+fun formatDecimal(value: Double): String = DecimalFormat("#,##0.#", DecimalSymbols).format(value)
+
+fun formatSecondsDecimal(seconds: Double): String = formatDecimal(seconds)

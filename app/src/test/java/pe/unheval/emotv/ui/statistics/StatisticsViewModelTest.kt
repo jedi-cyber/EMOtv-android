@@ -44,23 +44,19 @@ class StatisticsViewModelTest {
     }
 
     @Test
-    fun `el Usuario no cambia de alcance`() = runTest {
+    fun `el Usuario consulta solo las suyas`() = runTest {
         val vm = viewModel(isDocente = false)
 
-        vm.chooseScope(StatisticsScope.Group)
-
         assertEquals(StatisticsScope.Mine, vm.uiState.value.scope)
-        assertEquals(1, graph.api.calls.size)
+        assertEquals(listOf("GET statistics?scope=mine"), graph.api.calls)
     }
 
     @Test
-    fun `el Docente consulta las de su grupo`() = runTest {
-        graph.api.statistics = { statisticsDto(scope = it, total = if (it == "group") 9 else 4) }
+    fun `el Docente consulta siempre las de su grupo, porque sus demostraciones no cuentan`() = runTest {
+        graph.api.statistics = { statisticsDto(scope = it, total = if (it == "group") 9 else 0) }
         val vm = viewModel(isDocente = true)
 
-        vm.chooseScope(StatisticsScope.Group)
-
-        assertEquals(listOf("GET statistics?scope=mine", "GET statistics?scope=group"), graph.api.calls)
+        assertEquals(listOf("GET statistics?scope=group"), graph.api.calls)
         assertEquals(StatisticsScope.Group, vm.uiState.value.scope)
         assertEquals(9, vm.uiState.value.data.content?.total)
     }

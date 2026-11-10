@@ -9,11 +9,15 @@ import pe.unheval.emotv.data.remote.MetricsDto
 import pe.unheval.emotv.data.remote.PracticeDto
 import pe.unheval.emotv.data.remote.PracticeRowDto
 import pe.unheval.emotv.data.remote.PracticeTotalsDto
+import pe.unheval.emotv.data.remote.RecognitionDto
+import pe.unheval.emotv.data.remote.RecognitionRowDto
+import pe.unheval.emotv.data.remote.RecognitionTotalsDto
 import pe.unheval.emotv.data.remote.ReportDto
 import pe.unheval.emotv.data.remote.SessionDetailDto
 import pe.unheval.emotv.data.remote.SessionDto
 import pe.unheval.emotv.data.remote.StatisticsDto
 import pe.unheval.emotv.data.remote.StatisticsPracticeDto
+import pe.unheval.emotv.data.remote.StatisticsRecognitionDto
 import pe.unheval.emotv.domain.model.AbstractStimulusMetric
 import pe.unheval.emotv.domain.model.EmotionalStimulusMetric
 import pe.unheval.emotv.domain.model.ExpressionShare
@@ -25,6 +29,10 @@ import pe.unheval.emotv.domain.model.PracticeTargetResult
 import pe.unheval.emotv.domain.model.PracticeTotals
 import pe.unheval.emotv.domain.model.QuestionAnswer
 import pe.unheval.emotv.domain.model.QuestionnaireMoment
+import pe.unheval.emotv.domain.model.RecognitionChoice
+import pe.unheval.emotv.domain.model.RecognitionOutcome
+import pe.unheval.emotv.domain.model.RecognitionTargetResult
+import pe.unheval.emotv.domain.model.RecognitionTotals
 import pe.unheval.emotv.domain.model.Report
 import pe.unheval.emotv.domain.model.ReportComment
 import pe.unheval.emotv.domain.model.ReportSection
@@ -33,10 +41,12 @@ import pe.unheval.emotv.domain.model.SessionAudience
 import pe.unheval.emotv.domain.model.SessionDetail
 import pe.unheval.emotv.domain.model.SessionMetrics
 import pe.unheval.emotv.domain.model.SessionPractice
+import pe.unheval.emotv.domain.model.SessionRecognition
 import pe.unheval.emotv.domain.model.SessionState
 import pe.unheval.emotv.domain.model.SessionStatistics
 import pe.unheval.emotv.domain.model.SessionSummary
 import pe.unheval.emotv.domain.model.StatisticsPractice
+import pe.unheval.emotv.domain.model.StatisticsRecognition
 import pe.unheval.emotv.domain.model.StatisticsScope
 import pe.unheval.emotv.domain.model.TimelineEvent
 import java.time.Instant
@@ -44,7 +54,8 @@ import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.format.DateTimeParseException
 
-internal fun SessionDto.toDomain() = SessionSummary(
+/** [docente]: la cuenta es de un Docente, cuyas sesiones propias son de demostración. */
+internal fun SessionDto.toDomain(docente: Boolean = false) = SessionSummary(
     id = id,
     code = code,
     startedAt = parseInstant(startedAt),
@@ -53,6 +64,7 @@ internal fun SessionDto.toDomain() = SessionSummary(
     protocolName = protocolName,
     mine = mine,
     reportStatus = reportStatus?.let(ReportStatus::fromApi),
+    demonstration = docente && mine,
 )
 
 internal fun ReportDto.toDomain() = Report(
@@ -73,7 +85,7 @@ internal fun ReportDto.toDomain() = Report(
     },
 )
 
-internal fun SessionDetailDto.toDomain(): SessionDetail {
+internal fun SessionDetailDto.toDomain(docente: Boolean = false): SessionDetail {
     val lanes = timeline.lanes
     val events = buildList {
         lanes.questionnaires.forEach { item ->
@@ -88,17 +100,29 @@ internal fun SessionDetailDto.toDomain(): SessionDetail {
             )
         }
         lanes.stimuli.forEach {
-            if (it.kind == "practice" && it.targetExpression != null) {
-                add(
+            when {
+                it.kind == "practice" && it.targetExpression != null -> add(
                     TimelineEvent.Practice(
                         time = it.start,
                         targetExpression = it.targetExpression,
                         outcome = PracticeOutcome.fromApi(it.outcome),
                         secondsToAchieve = it.secondsToAchieve,
+                        imitate = it.imitate,
                     ),
                 )
-            } else {
-                add(TimelineEvent.Stimulus(it.start, it.title, it.skipped))
+                it.kind == "recognition" && it.targetExpression != null -> add(
+                    TimelineEvent.Recognition(
+                        time = it.start,
+                        title = it.title,
+                        targetExpression = it.targetExpression,
+                        // Un paso saltado puede llegar sin resultado: se muestra como saltado.
+                        outcome = RecognitionOutcome.fromApi(it.outcome)
+                            ?: RecognitionOutcome.Skipped.takeIf { _ -> it.skipped },
+                        chosenExpression = it.chosenExpression,
+                        secondsToAnswer = it.secondsToAnswer,
+                    ),
+                )
+                else -> add(TimelineEvent.Stimulus(it.start, it.title, it.skipped))
             }
         }
         lanes.captures.forEach { add(TimelineEvent.Capture(it.time, it.emotion, goodQuality = it.quality == "good")) }
@@ -106,7 +130,7 @@ internal fun SessionDetailDto.toDomain(): SessionDetail {
         lanes.markers.forEach { add(TimelineEvent.Marker(it.time, MarkerKind.fromApi(it.kind), it.note)) }
     }
     return SessionDetail(
-        session = session.toDomain(),
+        session = session.toDomain(docente),
         durationSeconds = timeline.durationSeconds,
         // Orden estable: a igual tiempo se conserva el orden de las líneas.
         timeline = events.sortedBy { it.time ?: Double.MAX_VALUE },
@@ -123,6 +147,13 @@ internal fun MetricsDto.toDomain() = SessionMetrics(
     abstractNotice = abstractNotice,
     // Sin ejercicios no hay sección de práctica, aunque el servidor envíe el bloque vacío.
     practice = practice?.takeIf { it.exercises.isNotEmpty() || it.byTarget.isNotEmpty() }?.toDomain(),
+    recognition = recognition?.takeIf { it.totals.exercises > 0 || it.byTarget.isNotEmpty() }?.toDomain(),
+)
+
+internal fun RecognitionDto.toDomain() = SessionRecognition(
+    totals = totals.toDomain(),
+    byTarget = byTarget.map { it.toDomain() },
+    notice = notice,
 )
 
 internal fun PracticeDto.toDomain() = SessionPractice(
@@ -145,6 +176,34 @@ internal fun StatisticsDto.toDomain(scope: StatisticsScope) = SessionStatistics(
     compared = coincidence.compared,
     matched = coincidence.matched,
     practice = practice?.takeIf { it.sessions > 0 || it.byTarget.isNotEmpty() }?.toDomain(),
+    recognition = recognition?.takeIf { it.sessions > 0 || it.byTarget.isNotEmpty() }?.toDomain(),
+)
+
+internal fun StatisticsRecognitionDto.toDomain() = StatisticsRecognition(
+    sessions = sessions,
+    totals = totals.toDomain(),
+    byTarget = byTarget.map { it.toDomain() },
+    notice = notice,
+)
+
+private fun RecognitionTotalsDto.toDomain() = RecognitionTotals(
+    applied = applied,
+    matched = matched,
+    timedOut = timedOut,
+    skipped = skipped,
+    stopped = stopped,
+    averageSecondsToAnswer = averageSecondsToAnswer,
+    sentence = sentence,
+)
+
+private fun RecognitionRowDto.toDomain() = RecognitionTargetResult(
+    targetExpression = targetExpression,
+    applied = applied,
+    matched = matched,
+    timedOut = timedOut,
+    skipped = skipped,
+    stopped = stopped,
+    otherChoices = otherChoices.map { RecognitionChoice(it.expression, it.count) },
 )
 
 internal fun StatisticsPracticeDto.toDomain() = StatisticsPractice(

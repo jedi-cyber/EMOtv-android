@@ -29,6 +29,8 @@ data class SessionSummary(
     val mine: Boolean,
     /** Estado del reporte vigente; `null` si la sesión no tiene reporte. */
     val reportStatus: ReportStatus?,
+    /** Sesión propia del Docente: es de demostración y no cuenta en las estadísticas. */
+    val demonstration: Boolean = false,
 )
 
 /** Con quién fue la sesión (`audience`). */

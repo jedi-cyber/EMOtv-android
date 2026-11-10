@@ -6,11 +6,16 @@ import org.junit.Test
 import pe.unheval.emotv.data.remote.ApiJson
 import pe.unheval.emotv.data.remote.SessionDetailDto
 import pe.unheval.emotv.data.remote.StatisticsDto
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import pe.unheval.emotv.data.remote.SessionDto
 import pe.unheval.emotv.domain.model.PracticeOutcome
+import pe.unheval.emotv.domain.model.RecognitionChoice
+import pe.unheval.emotv.domain.model.RecognitionOutcome
 import pe.unheval.emotv.domain.model.StatisticsScope
 import pe.unheval.emotv.domain.model.TimelineEvent
 
-/** Respuestas con la forma de docs/mobile-api.md, revisiones 4 y 4.1. */
+/** Respuestas con la forma de docs/mobile-api.md, revisiones 4 a 4.4. */
 class MappersTest {
 
     private val session = """{"id": "s-1", "code": "S-4F7K2Q", "started_at": "2026-10-30T15:00:00+00:00",
@@ -100,6 +105,77 @@ class MappersTest {
         assertEquals(TimelineEvent.Stimulus(8.1, "Paisaje", skipped = false), timeline[0])
         assertEquals(TimelineEvent.Practice(14.1, "happiness", PracticeOutcome.Achieved, 4.5), timeline[1])
         assertEquals(TimelineEvent.Practice(22.0, "surprise", outcome = null, secondsToAchieve = null), timeline[2])
+    }
+
+    @Test
+    fun `«Haz la misma cara» llega marcado y un servidor anterior no lo envía`() {
+        val timeline = detail(
+            metricsExtra = "",
+            stimuli = """[{"step_index": 0, "title": "", "kind": "practice", "start": 5.0, "skipped": false,
+                           "target_expression": "surprise", "imitate": true, "outcome": "timed_out"},
+                          {"step_index": 1, "title": "", "kind": "practice", "start": 9.0, "skipped": false,
+                           "target_expression": "happiness", "outcome": "achieved", "seconds_to_achieve": 2.0}]""",
+        ).timeline
+
+        assertTrue((timeline[0] as TimelineEvent.Practice).imitate)
+        assertFalse((timeline[1] as TimelineEvent.Practice).imitate)
+    }
+
+    @Test
+    fun `los pasos de reconocimiento traen la emoción de la imagen y la opción elegida`() {
+        val detail = detail(
+            metricsExtra = """, "recognition": {
+                "exercises": [{"step_index": 0, "target_expression": "happiness", "outcome": "answered",
+                               "chosen_expression": "surprise", "matched": false, "seconds_to_answer": 3.2}],
+                "totals": {"exercises": 2, "applied": 2, "matched": 1, "timed_out": 1, "skipped": 0, "stopped": 0,
+                           "not_reached": 0, "average_seconds_to_answer": 3.2,
+                           "sentence": "Eligió la emoción de la imagen en 1 de 2 pasos."},
+                "by_target": [{"target_expression": "happiness", "applied": 2, "matched": 1, "timed_out": 1,
+                               "skipped": 0, "stopped": 0, "other_choices": [{"expression": "surprise", "count": 1}]}],
+                "notice": "$notice"}""",
+            stimuli = """[{"step_index": 0, "title": "Niña sonriendo", "kind": "recognition", "start": 4.0,
+                           "skipped": false, "target_expression": "happiness", "outcome": "answered",
+                           "chosen_expression": "surprise", "seconds_to_answer": 3.2},
+                          {"step_index": 1, "title": "Gato", "kind": "recognition", "start": 9.0, "skipped": true,
+                           "target_expression": "sadness", "outcome": null}]""",
+        )
+        val recognition = checkNotNull(detail.metrics.recognition)
+
+        assertEquals("Eligió la emoción de la imagen en 1 de 2 pasos.", recognition.totals.sentence)
+        assertEquals(1, recognition.totals.timedOut)
+        assertEquals(listOf(RecognitionChoice("surprise", 1)), recognition.byTarget.single().otherChoices)
+        assertEquals(notice, recognition.notice)
+        assertEquals(
+            TimelineEvent.Recognition(4.0, "Niña sonriendo", "happiness", RecognitionOutcome.Answered, "surprise", 3.2),
+            detail.timeline[0],
+        )
+        assertEquals(RecognitionOutcome.Skipped, (detail.timeline[1] as TimelineEvent.Recognition).outcome)
+        // Un servidor 4.1 no envía reconocimientos.
+        assertNull(detail(metricsExtra = "").metrics.recognition)
+    }
+
+    @Test
+    fun `las sesiones propias del Docente son demostraciones y las del Usuario no`() {
+        val own = ApiJson.decodeFromString(SessionDto.serializer(), session)
+        val fromGroup = own.copy(mine = false)
+
+        assertTrue(own.toDomain(docente = true).demonstration)
+        assertFalse(fromGroup.toDomain(docente = true).demonstration)
+        assertFalse(own.toDomain(docente = false).demonstration)
+    }
+
+    @Test
+    fun `estadísticas de reconocimiento agregadas`() {
+        val statistics = statistics(
+            extra = """, "recognition": {"sessions": 3,
+                "totals": {"applied": 6, "matched": 4, "timed_out": 1, "skipped": 1, "stopped": 0,
+                           "average_seconds_to_answer": 2.5, "sentence": "Eligió la emoción de la imagen en 4 de 6 pasos."},
+                "by_target": [], "notice": "$notice"}""",
+        )
+
+        assertEquals(3, statistics.recognition?.sessions)
+        assertEquals(4, statistics.recognition?.totals?.matched)
+        assertNull(statistics(extra = "").recognition)
     }
 
     @Test

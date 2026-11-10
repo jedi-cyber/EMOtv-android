@@ -112,7 +112,10 @@ data class AnswerDto(
     val answer: JsonElement? = null,
 )
 
-/** Con `kind` `practice` (4.1) trae además la expresión pedida y el resultado del ejercicio. */
+/**
+ * Con `kind` `practice` (4.1) trae además la expresión pedida y el resultado del ejercicio, y desde
+ * 4.3 `imitate`. Con `kind` `recognition` (4.2), la emoción de la imagen y la opción elegida.
+ */
 @Serializable
 data class StimulusLaneDto(
     @SerialName("step_index") val stepIndex: Int = 0,
@@ -123,6 +126,10 @@ data class StimulusLaneDto(
     @SerialName("target_expression") val targetExpression: String? = null,
     val outcome: String? = null,
     @SerialName("seconds_to_achieve") val secondsToAchieve: Double? = null,
+    /** Desde 4.3: «Haz la misma cara», con la imagen como modelo. Falta en un servidor anterior. */
+    val imitate: Boolean = false,
+    @SerialName("chosen_expression") val chosenExpression: String? = null,
+    @SerialName("seconds_to_answer") val secondsToAnswer: Double? = null,
 )
 
 @Serializable
@@ -155,6 +162,8 @@ data class MetricsDto(
     @SerialName("abstract_notice") val abstractNotice: String? = null,
     /** Desde 4.1; `null` (o ausente en un servidor anterior) si el protocolo no tenía ejercicios. */
     val practice: PracticeDto? = null,
+    /** Desde 4.2; `null` (o ausente) si el protocolo no tenía pasos «¿Qué emoción es?». */
+    val recognition: RecognitionDto? = null,
 )
 
 @Serializable
@@ -225,6 +234,50 @@ data class PracticeRowDto(
     @SerialName("average_seconds_to_achieve") val averageSecondsToAchieve: Double? = null,
 )
 
+/** `Recognition` (4.2). De cada paso solo se usa la línea de tiempo; aquí, los totales y el desglose. */
+@Serializable
+data class RecognitionDto(
+    val totals: RecognitionTotalsDto = RecognitionTotalsDto(),
+    @SerialName("by_target") val byTarget: List<RecognitionRowDto> = emptyList(),
+    val notice: String = "",
+)
+
+@Serializable
+data class RecognitionTotalsDto(
+    val exercises: Int = 0,
+    val applied: Int = 0,
+    val matched: Int = 0,
+    @SerialName("timed_out") val timedOut: Int = 0,
+    val skipped: Int = 0,
+    val stopped: Int = 0,
+    @SerialName("not_reached") val notReached: Int = 0,
+    @SerialName("average_seconds_to_answer") val averageSecondsToAnswer: Double? = null,
+    val sentence: String = "",
+)
+
+@Serializable
+data class RecognitionRowDto(
+    @SerialName("target_expression") val targetExpression: String,
+    val applied: Int = 0,
+    val matched: Int = 0,
+    @SerialName("timed_out") val timedOut: Int = 0,
+    val skipped: Int = 0,
+    val stopped: Int = 0,
+    @SerialName("other_choices") val otherChoices: List<RecognitionChoiceDto> = emptyList(),
+)
+
+@Serializable
+data class RecognitionChoiceDto(val expression: String, val count: Int = 0)
+
+/** `StatisticsRecognition` (4.2): sin desglose por usuario. */
+@Serializable
+data class StatisticsRecognitionDto(
+    val sessions: Int = 0,
+    val totals: RecognitionTotalsDto = RecognitionTotalsDto(),
+    @SerialName("by_target") val byTarget: List<RecognitionRowDto> = emptyList(),
+    val notice: String = "",
+)
+
 // --- Reporte ----------------------------------------------------------------------------
 
 /** `Report`. La línea de tiempo y las métricas que también trae se ignoran: se ven en el detalle de la sesión. */
@@ -272,6 +325,8 @@ data class StatisticsDto(
     val coincidence: CoincidenceDto = CoincidenceDto(),
     /** Desde 4.1, aparte de `coincidence`; `null` (o ausente) si ninguna sesión tuvo ejercicios. */
     val practice: StatisticsPracticeDto? = null,
+    /** Desde 4.2; `null` (o ausente) si ninguna sesión tuvo pasos «¿Qué emoción es?». */
+    val recognition: StatisticsRecognitionDto? = null,
 )
 
 @Serializable

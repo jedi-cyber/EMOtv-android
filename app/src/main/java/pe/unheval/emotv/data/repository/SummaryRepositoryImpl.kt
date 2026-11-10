@@ -7,6 +7,7 @@ import pe.unheval.emotv.domain.model.DashboardSummary
 import pe.unheval.emotv.domain.model.Outcome
 import pe.unheval.emotv.domain.repository.AuthRepository
 import pe.unheval.emotv.domain.repository.SummaryRepository
+import pe.unheval.emotv.domain.usecase.isDocente
 import java.time.LocalDate
 
 class SummaryRepositoryImpl(
@@ -18,10 +19,14 @@ class SummaryRepositoryImpl(
         authRepository.authorizedCall { api.summary(date.toString(), utcOffsetMinutes).toDomain() }
 }
 
-private fun SummaryDto.toDomain() = DashboardSummary(
-    user = AuthUser(id = user.id, email = user.email, role = user.role, roleName = user.roleName),
-    date = parseDate(date),
-    todaySessions = todaySessions.map { it.toDomain() },
-    recentSessions = recentSessions.map { it.toDomain() },
-    pendingReviews = pendingReviews,
-)
+private fun SummaryDto.toDomain(): DashboardSummary {
+    val account = AuthUser(id = user.id, email = user.email, role = user.role, roleName = user.roleName)
+    val docente = account.isDocente()
+    return DashboardSummary(
+        user = account,
+        date = parseDate(date),
+        todaySessions = todaySessions.map { it.toDomain(docente) },
+        recentSessions = recentSessions.map { it.toDomain(docente) },
+        pendingReviews = pendingReviews,
+    )
+}

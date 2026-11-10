@@ -17,6 +17,7 @@ import androidx.compose.ui.semantics.semantics
 import pe.unheval.emotv.R
 import pe.unheval.emotv.domain.model.SessionStatistics
 import pe.unheval.emotv.domain.model.StatisticsPractice
+import pe.unheval.emotv.domain.model.StatisticsRecognition
 import pe.unheval.emotv.domain.model.StatisticsScope
 import pe.unheval.emotv.ui.components.BarChart
 import pe.unheval.emotv.ui.components.BarChartRow
@@ -27,23 +28,23 @@ import pe.unheval.emotv.ui.components.EmotvCard
 import pe.unheval.emotv.ui.components.PracticeSentences
 import pe.unheval.emotv.ui.components.PracticeTags
 import pe.unheval.emotv.ui.components.PracticeTargetChart
-import pe.unheval.emotv.ui.components.RadioRow
+import pe.unheval.emotv.ui.components.RecognitionSentences
+import pe.unheval.emotv.ui.components.RecognitionTargetChart
 import pe.unheval.emotv.ui.components.expressionLabel
+import pe.unheval.emotv.ui.components.formatDecimal
 import pe.unheval.emotv.ui.components.practiceBar
 import pe.unheval.emotv.ui.theme.EmotvColors
 import pe.unheval.emotv.ui.theme.EmotvSpacing
 import pe.unheval.emotv.ui.theme.EmotvType
-import java.text.NumberFormat
-import java.util.Locale
 import kotlin.math.roundToInt
 
 object StatisticsTags {
-    const val SCOPE_MINE = "statistics_scope_mine"
     const val SCOPE_GROUP = "statistics_scope_group"
     const val TOTAL = "statistics_total"
     const val SESSIONS_CHART = "statistics_sessions_chart"
     const val EXPRESSIONS_CHART = "statistics_expressions_chart"
     const val PRACTICE = "statistics_practice"
+    const val RECOGNITION = "statistics_recognition"
 }
 
 /**
@@ -54,7 +55,6 @@ object StatisticsTags {
 fun StatisticsScreen(
     state: StatisticsUiState,
     onRefresh: () -> Unit,
-    onChooseScope: (StatisticsScope) -> Unit,
     onBack: () -> Unit,
 ) {
     val data = state.data
@@ -65,26 +65,18 @@ fun StatisticsScreen(
         isLoading = data.isLoading,
         isRefreshing = data.isRefreshing,
         error = data.error,
-        // El selector de alcance se ve aunque los datos estén cargando.
+        // El alcance se ve aunque los datos estén cargando.
         hasContent = true,
         onRefresh = onRefresh,
     ) {
-        if (state.canChooseScope) {
+        if (state.scope == StatisticsScope.Group) {
             item(key = "scope") {
-                Column {
-                    RadioRow(
-                        text = stringResource(R.string.statistics_scope_mine),
-                        selected = state.scope == StatisticsScope.Mine,
-                        onSelect = { onChooseScope(StatisticsScope.Mine) },
-                        modifier = Modifier.testTag(StatisticsTags.SCOPE_MINE),
-                    )
-                    RadioRow(
-                        text = stringResource(R.string.statistics_scope_group),
-                        selected = state.scope == StatisticsScope.Group,
-                        onSelect = { onChooseScope(StatisticsScope.Group) },
-                        modifier = Modifier.testTag(StatisticsTags.SCOPE_GROUP),
-                    )
-                }
+                Text(
+                    text = stringResource(R.string.statistics_scope_group_hint),
+                    style = EmotvType.BodySm,
+                    color = EmotvColors.Charcoal,
+                    modifier = Modifier.testTag(StatisticsTags.SCOPE_GROUP),
+                )
             }
         }
         val statistics = data.content
@@ -99,6 +91,7 @@ fun StatisticsScreen(
         item(key = "expressions") { ExpressionsCard(statistics) }
         item(key = "coincidence") { CoincidenceCard(statistics) }
         // Aparte de la coincidencia con estímulos: en la práctica se pide la expresión.
+        statistics.recognition?.let { recognition -> item(key = "recognition") { RecognitionCard(recognition) } }
         statistics.practice?.let { practice -> item(key = "practice") { PracticeCard(practice) } }
     }
 }
@@ -164,7 +157,6 @@ private fun Figure(label: String, value: String, modifier: Modifier = Modifier) 
 
 @Composable
 private fun ExpressionsCard(statistics: SessionStatistics) {
-    val percent = NumberFormat.getNumberInstance(Locale.forLanguageTag("es-PE")).apply { maximumFractionDigits = 1 }
     EmotvCard {
         CardTitle(stringResource(R.string.statistics_expressions_title))
         Text(
@@ -179,7 +171,7 @@ private fun ExpressionsCard(statistics: SessionStatistics) {
                         key = row.expression,
                         label = expressionLabel(row.expression),
                         value = row.percent,
-                        valueText = stringResource(R.string.statistics_percent, percent.format(row.percent)),
+                        valueText = stringResource(R.string.statistics_percent, formatDecimal(row.percent)),
                         detail = pluralStringResource(R.plurals.statistics_captures_in_sessions, row.captures, row.captures) +
                             " " + pluralStringResource(R.plurals.statistics_in_sessions, row.sessions, row.sessions),
                     )
@@ -217,6 +209,21 @@ private fun CoincidenceCard(statistics: SessionStatistics) {
             style = EmotvType.BodyMd,
             color = EmotvColors.Ink,
         )
+    }
+}
+
+@Composable
+private fun RecognitionCard(recognition: StatisticsRecognition) {
+    EmotvCard(modifier = Modifier.testTag(StatisticsTags.RECOGNITION)) {
+        CardTitle(stringResource(R.string.recognition_title))
+        Text(
+            text = pluralStringResource(R.plurals.statistics_recognition_sessions, recognition.sessions, recognition.sessions),
+            style = EmotvType.BodySm,
+            color = EmotvColors.Slate,
+        )
+        RecognitionSentences(recognition.totals)
+        RecognitionTargetChart(recognition.byTarget)
+        if (recognition.notice.isNotEmpty()) Callout(title = recognition.notice, body = null, tone = CalloutTone.Neutral)
     }
 }
 

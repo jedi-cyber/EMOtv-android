@@ -76,7 +76,6 @@ class StatisticsScreenTest {
                 StatisticsScreen(
                     state = StatisticsUiState(data = Loadable<SessionStatistics>().loaded(statistics)),
                     onRefresh = {},
-                    onChooseScope = {},
                     onBack = {},
                 )
             }

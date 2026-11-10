@@ -30,6 +30,7 @@ import pe.unheval.emotv.ui.components.FormScreen
 import pe.unheval.emotv.ui.components.GhostButton
 import pe.unheval.emotv.ui.components.PageSubtitle
 import pe.unheval.emotv.ui.components.PageTitle
+import pe.unheval.emotv.ui.components.GhostButton
 import pe.unheval.emotv.ui.components.PrimaryButton
 
 @Composable
@@ -38,6 +39,8 @@ fun LoginScreen(
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onSubmit: () -> Unit,
+    /** Pantalla de la persona: se abre con un código, sin iniciar sesión. */
+    onOpenParticipation: () -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
@@ -118,6 +121,14 @@ fun LoginScreen(
                 .fillMaxWidth()
                 .testTag(LoginTags.SUBMIT),
         )
+
+        GhostButton(
+            text = stringResource(R.string.login_open_participation),
+            onClick = onOpenParticipation,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(LoginTags.PARTICIPATION),
+        )
     }
 }
 
@@ -126,6 +137,7 @@ object LoginTags {
     const val PASSWORD = "login_password"
     const val SUBMIT = "login_submit"
     const val ERROR = "login_error"
+    const val PARTICIPATION = "login_participation"
 }
 
 @Composable

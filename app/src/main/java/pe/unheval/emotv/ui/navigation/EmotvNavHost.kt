@@ -25,6 +25,9 @@ import pe.unheval.emotv.ui.login.LoginNavigation
 import pe.unheval.emotv.ui.login.LoginScreen
 import pe.unheval.emotv.ui.login.LoginViewModel
 import pe.unheval.emotv.ui.login.PasswordChangeRequiredScreen
+import pe.unheval.emotv.ui.participation.ParticipationActions
+import pe.unheval.emotv.ui.participation.ParticipationScreen
+import pe.unheval.emotv.ui.participation.ParticipationViewModel
 import pe.unheval.emotv.ui.report.ReportActions
 import pe.unheval.emotv.ui.report.ReportScreen
 import pe.unheval.emotv.ui.report.ReportViewModel
@@ -50,6 +53,8 @@ import pe.unheval.emotv.ui.statistics.StatisticsViewModel
 @Serializable data class ReportRoute(val reportId: String)
 @Serializable data object ReviewsRoute
 @Serializable data object StatisticsRoute
+// Pantalla de la persona: sin cuenta; el enlace vive solo en su ViewModel.
+@Serializable data object ParticipationRoute
 
 @Composable
 fun EmotvNavHost(
@@ -105,6 +110,47 @@ fun EmotvNavHost(
                 onEmailChange = viewModel::onEmailChange,
                 onPasswordChange = viewModel::onPasswordChange,
                 onSubmit = viewModel::submit,
+                onOpenParticipation = { navController.navigate(ParticipationRoute) },
+            )
+        }
+
+        composable<ParticipationRoute> {
+            // Al salir de la ruta se destruye el ViewModel: el enlace y el dibujo se borran.
+            val viewModel: ParticipationViewModel = viewModel(factory = ParticipationViewModel.Factory)
+            val state by viewModel.uiState.collectAsStateWithLifecycle()
+            val revision by viewModel.boardRevision.collectAsStateWithLifecycle()
+            val roundImage by viewModel.roundImage.collectAsStateWithLifecycle()
+            val optionImages by viewModel.optionImages.collectAsStateWithLifecycle()
+            LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.onStart() }
+            LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.onStop() }
+            ParticipationScreen(
+                state = state,
+                board = viewModel.board,
+                revision = revision,
+                roundImage = roundImage,
+                optionImages = optionImages,
+                actions = ParticipationActions(
+                    onCodeChange = viewModel::onCodeChange,
+                    onSubmitCode = viewModel::submitCode,
+                    onSelectColor = viewModel::selectColor,
+                    onSelectSize = viewModel::selectSize,
+                    onToggleEraser = viewModel::toggleEraser,
+                    onUndo = viewModel::undo,
+                    onClear = viewModel::clear,
+                    onFinishDrawing = viewModel::finishDrawing,
+                    onKeepDrawing = viewModel::keepDrawing,
+                    onChoose = viewModel::choose,
+                    onStrokeStart = viewModel::strokeStart,
+                    onStrokeMove = viewModel::strokeMove,
+                    onStrokeEnd = viewModel::strokeEnd,
+                    onStrokeCancel = viewModel::strokeCancel,
+                    onGame = viewModel::play,
+                    onStop = viewModel::stopSession,
+                    onExit = {
+                        viewModel.leave()
+                        navController.popBackStack()
+                    },
+                ),
             )
         }
 
@@ -206,7 +252,6 @@ fun EmotvNavHost(
             StatisticsScreen(
                 state = state,
                 onRefresh = viewModel::refresh,
-                onChooseScope = viewModel::chooseScope,
                 onBack = { navController.popBackStack() },
             )
         }

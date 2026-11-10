@@ -13,8 +13,9 @@ su línea de tiempo y sus métricas, los reportes y las estadísticas agregadas.
 **El aplicativo no conduce sesiones ni usa la cámara.** Las sesiones se conducen solo
 desde el Analizador de la web, así que ninguna imagen de una persona pasa por el
 dispositivo. Las personas evaluadas no se registran: cada sesión se identifica por su código
-aleatorio. EMOtv estima una expresión; no diagnostica. El aplicativo sigue la revisión 4 del
-contrato (`docs/mobile-api.md`).
+aleatorio. EMOtv estima una expresión; no diagnostica. El aplicativo sigue la revisión 4.4 del
+contrato (`docs/mobile-api.md`): práctica de expresiones, «¿Qué emoción es?», «Haz la misma
+cara» y, para el Docente, estadísticas de su grupo y sesiones propias marcadas como demostración.
 
 ## Requisitos
 

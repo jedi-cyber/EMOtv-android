@@ -6,6 +6,7 @@ import pe.unheval.emotv.domain.model.SessionDetail
 import pe.unheval.emotv.domain.model.SessionSummary
 import pe.unheval.emotv.domain.repository.AuthRepository
 import pe.unheval.emotv.domain.repository.SessionRepository
+import pe.unheval.emotv.domain.usecase.isDocente
 
 class SessionRepositoryImpl(
     private val api: EmotvApi,
@@ -13,8 +14,10 @@ class SessionRepositoryImpl(
 ) : SessionRepository {
 
     override suspend fun list(): Outcome<List<SessionSummary>> =
-        authRepository.authorizedCall { api.sessions().map { it.toDomain() } }
+        authRepository.authorizedCall { api.sessions().map { it.toDomain(docente()) } }
 
     override suspend fun detail(sessionId: String): Outcome<SessionDetail> =
-        authRepository.authorizedCall { api.sessionDetail(sessionId).toDomain() }
+        authRepository.authorizedCall { api.sessionDetail(sessionId).toDomain(docente()) }
+
+    private fun docente() = authRepository.currentUser.value?.isDocente() == true
 }
