@@ -11,6 +11,8 @@ interface ParticipationRepository {
     suspend fun view(token: String): Outcome<ParticipantView>
     /** Envía solo la emoción elegida. */
     suspend fun answer(token: String, expression: String): Outcome<Unit>
+    /** «Terminé» desde 4.15: sin cuerpo; el dibujo no sale del dispositivo. */
+    suspend fun drawingDone(token: String): Outcome<Unit>
     suspend fun stop(token: String): Outcome<Unit>
     /** Una acción del juego; [expression] es la clave de la emoción al elegir. */
     suspend fun game(token: String, action: GameAction, expression: String? = null): Outcome<Unit>

@@ -9,7 +9,7 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 
 /**
- * Pantalla de la persona (docs/mobile-api.md, revisión 4.9 y 4.10). Va en un cliente
+ * Pantalla de la persona (docs/mobile-api.md, revisiones 4.9 a 4.17). Va en un cliente
  * propio, sin el token de la cuenta: el enlace de la persona solo abre
  * `/participant-view/{token}` y nunca se mezcla con las rutas de consulta.
  */
@@ -21,9 +21,13 @@ interface ParticipationApi {
     @GET("participant-view/{token}")
     suspend fun state(@Path("token") token: String): ParticipantStateDto
 
-    /** Solo la emoción elegida: el dibujo no sale del dispositivo. */
+    /** Un servidor anterior a 4.15: solo la emoción elegida. El dibujo no sale del dispositivo. */
     @POST("participant-view/{token}/answer")
     suspend fun answer(@Path("token") token: String, @Body body: AnswerRequestDto): ReceivedDto
+
+    /** Desde 4.15, «Terminé» sin cuerpo: solo se registra que terminó. El dibujo no sale del dispositivo. */
+    @POST("participant-view/{token}/drawing-done")
+    suspend fun drawingDone(@Path("token") token: String): ReceivedDto
 
     /** La imagen de la ronda (un estímulo, nunca la de una persona). Solo en memoria. */
     @GET("participant-view/{token}/stimulus")
@@ -104,8 +108,9 @@ data class ActivityDto(
 @Serializable
 data class ParticipantDrawingDto(
     val instruction: String,
-    val question: String,
-    val options: List<DrawingOptionDto>,
+    /** Desde 4.15 llega nulo y [options] vacío: no se pregunta qué emoción quiso dibujar. */
+    val question: String? = null,
+    val options: List<DrawingOptionDto> = emptyList(),
     /** Cambia con cada intento: un intento nuevo empieza con el lienzo vacío. */
     val round: String,
     val finished: Boolean,

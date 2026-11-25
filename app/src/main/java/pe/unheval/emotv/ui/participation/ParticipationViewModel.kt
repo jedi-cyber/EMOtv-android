@@ -21,7 +21,7 @@ import pe.unheval.emotv.domain.model.Outcome
 import pe.unheval.emotv.domain.model.ParticipantView
 import pe.unheval.emotv.domain.repository.ParticipationRepository
 
-/** El paso de dibujo, como en la web: dibujar, elegir la emoción y terminado. */
+/** El paso de dibujo, como en la web: dibujar y terminado; con un servidor anterior a 4.15, también elegir la emoción. */
 enum class DrawingPhase { Drawing, Choosing, Done }
 
 sealed interface ParticipationUiState {
@@ -73,7 +73,7 @@ class ParticipationViewModel(
     val boardRevision: StateFlow<Int> = revisionState.asStateFlow()
 
     private val imageState = MutableStateFlow<RoundImage?>(null)
-    /** La imagen del juego en curso; se borra al cambiar de ronda, al terminar y al salir. */
+    /** La imagen del juego o del dibujo en curso; se borra al cambiar de ronda o de paso, al terminar y al salir. */
     val roundImage: StateFlow<RoundImage?> = imageState.asStateFlow()
     private var loadingExposure: String? = null
     private val optionImagesState = MutableStateFlow<Map<String, ByteArray>>(emptyMap())
@@ -183,12 +183,14 @@ class ParticipationViewModel(
 
     /**
      * Pide las imágenes cuando cambia la ronda y suelta las anteriores: la de la
-     * ronda y, al buscar la misma emoción, la de cada cara para elegir.
+     * ronda y, al buscar la misma emoción, la de cada cara para elegir. En un
+     * dibujo (4.14), la imagen que la persona mira antes de dibujar.
      */
     private fun syncRoundImage(view: ParticipantView) {
         val game = view.game
-        val exposure = view.exposure.takeIf { game?.type?.playable == true }
-        if (game == null || exposure == null) {
+        val wanted = game?.type?.playable == true || view.drawing != null
+        val exposure = view.exposure.takeIf { wanted }
+        if (exposure == null) {
             discardImage()
             return
         }
@@ -197,7 +199,7 @@ class ParticipationViewModel(
         optionImagesState.value = emptyMap()
         loadingExposure = exposure
         val link = token ?: return
-        val optionKeys = if (game.type == GameType.Similar) game.options.map { it.key } else emptyList()
+        val optionKeys = if (game?.type == GameType.Similar) game.options.map { it.key } else emptyList()
         viewModelScope.launch {
             val result = repository.stimulus(link)
             val faces = optionKeys.mapNotNull { key ->
@@ -269,11 +271,35 @@ class ParticipationViewModel(
     fun strokeEnd(pointer: Long) { board.end(pointer); changed() }
     fun strokeCancel() { board.cancel(); changed() }
 
-    /** «Terminé»: con algo dibujado, se pregunta qué emoción quiso dibujar. */
+    /**
+     * «Terminé», con algo dibujado. Desde 4.15 solo se avisa que terminó, sin cuerpo; un
+     * servidor anterior que envía las emociones pregunta antes cuál quiso dibujar.
+     */
     fun finishDrawing() {
         val current = active() ?: return
-        if (current.phase == DrawingPhase.Drawing && board.hasDrawing) {
+        val step = current.view.drawing ?: return
+        if (current.phase != DrawingPhase.Drawing || !board.hasDrawing || current.sending) return
+        if (step.asksEmotion) {
             state.value = current.copy(phase = DrawingPhase.Choosing, sendFailed = false)
+            return
+        }
+        val link = token ?: return
+        state.value = current.copy(sending = true, sendFailed = false)
+        viewModelScope.launch { finished(repository.drawingDone(link)) }
+    }
+
+    /** Un 409 (ya registrado, por ejemplo al reintentar) cuenta como recibido. */
+    private suspend fun finished(result: Outcome<Unit>) {
+        val latest = active() ?: return
+        when {
+            result is Outcome.Success || (result as Outcome.Failure).error.isAlreadyRecorded() -> {
+                discardDrawing()
+                state.value = latest.copy(phase = DrawingPhase.Done, sending = false)
+                refresh()
+            }
+            result.error.isGone() -> end()
+            // Sin conexión u otro error: el dibujo se conserva para volver a intentarlo.
+            else -> state.value = latest.copy(sending = false, sendFailed = true)
         }
     }
 
@@ -284,26 +310,13 @@ class ParticipationViewModel(
         }
     }
 
-    /** Envía solo la emoción elegida. Un 409 (ya registrada) cuenta como recibida. */
+    /** Servidor anterior a 4.15: envía solo la emoción elegida. Un 409 (ya registrada) cuenta como recibida. */
     fun choose(expression: String) {
         val current = active() ?: return
         val link = token ?: return
         if (current.phase != DrawingPhase.Choosing || current.sending) return
         state.value = current.copy(sending = true, sendFailed = false)
-        viewModelScope.launch {
-            val result = repository.answer(link, expression)
-            val latest = active() ?: return@launch
-            when {
-                result is Outcome.Success || (result as Outcome.Failure).error.isAlreadyRecorded() -> {
-                    discardDrawing()
-                    state.value = latest.copy(phase = DrawingPhase.Done, sending = false)
-                    refresh()
-                }
-                result.error.isGone() -> end()
-                // Sin conexión u otro error: el dibujo se conserva para volver a intentarlo.
-                else -> state.value = latest.copy(sending = false, sendFailed = true)
-            }
-        }
+        viewModelScope.launch { finished(repository.answer(link, expression)) }
     }
 
     /** «Quiero parar»: la sesión termina de inmediato. */

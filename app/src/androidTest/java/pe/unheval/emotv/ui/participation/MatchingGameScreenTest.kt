@@ -76,6 +76,7 @@ private class FakeGame(val similar: Boolean = false) : ParticipationRepository {
     override suspend fun claim(code: String): Outcome<String> = Outcome.Success("enlace-de-prueba")
     override suspend fun view(token: String): Outcome<ParticipantView> = Outcome.Success(view())
     override suspend fun answer(token: String, expression: String): Outcome<Unit> = Outcome.Success(Unit)
+    override suspend fun drawingDone(token: String): Outcome<Unit> = Outcome.Success(Unit)
     override suspend fun stop(token: String): Outcome<Unit> = Outcome.Success(Unit)
 
     override suspend fun stimulus(token: String): Outcome<ByteArray> = Outcome.Success(png())

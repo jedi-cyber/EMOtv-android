@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import pe.unheval.emotv.data.remote.ApiJson
+import pe.unheval.emotv.data.remote.ParticipantStateDto
 import pe.unheval.emotv.data.remote.SessionDetailDto
 import pe.unheval.emotv.data.remote.StatisticsDto
 import org.junit.Assert.assertFalse
@@ -119,6 +120,69 @@ class MappersTest {
 
         assertTrue((timeline[0] as TimelineEvent.Practice).imitate)
         assertFalse((timeline[1] as TimelineEvent.Practice).imitate)
+    }
+
+    @Test
+    fun `4_13 a 4_17 - rondas del juego con cámara, dibujos, juegos y el analizador en la línea de tiempo`() {
+        val face = "Al pedirle poner la cara, la cámara estimó la expresión pedida en 1 de 2 rondas. " +
+            "Es una estimación, no una valoración."
+        val timeline = detail(
+            metricsExtra = "",
+            stimuli = """[{"step_index": 0, "title": "", "kind": "practice", "start": 1.0, "skipped": false,
+                           "target_expression": "happiness", "game_round": 1, "outcome": "achieved",
+                           "seconds_to_achieve": 2.0},
+                          {"step_index": 1, "title": "", "kind": "drawing", "start": 5.0, "skipped": false,
+                           "outcome": "answered", "chosen_expression": null, "seconds_to_answer": 30.0},
+                          {"step_index": 2, "title": "", "kind": "game", "start": 40.0, "skipped": false,
+                           "outcome": "completed", "rounds": 2, "game_type": "matching",
+                           "sentence": "Emparejó 2 de 2 rondas.", "face_sentence": "$face"},
+                          {"step_index": 3, "title": "Expresiones con la cámara", "kind": "analyzer",
+                           "start": 60.0, "skipped": false},
+                          {"step_index": 4, "title": "", "kind": "drawing", "start": 90.0, "skipped": true}]""",
+        ).timeline
+
+        assertEquals(1, (timeline[0] as TimelineEvent.Practice).gameRound)
+        assertEquals(TimelineEvent.Drawing(5.0, RecognitionOutcome.Answered, chosenExpression = null), timeline[1])
+        assertEquals(TimelineEvent.Game(40.0, "matching", false, "Emparejó 2 de 2 rondas.", face), timeline[2])
+        assertEquals(TimelineEvent.Analyzer(60.0, "Expresiones con la cámara", skipped = false), timeline[3])
+        assertEquals(RecognitionOutcome.Skipped, (timeline[4] as TimelineEvent.Drawing).outcome)
+    }
+
+    @Test
+    fun `4_15 - un dibujo sin pregunta ni emociones se lee sin error`() {
+        val view = ApiJson.decodeFromString(
+            ParticipantStateDto.serializer(),
+            """{"phase": "stimuli", "message": null, "stimulus": {"exposure": "1-1700000000"},
+                "activity": {"kind": "drawing", "name": "Dibuja una cara", "number": 2, "total": 3},
+                "drawing": {"instruction": "Mira la imagen y dibuja una cara con la emoción que sientes.",
+                            "question": null, "options": [], "round": "1-1", "finished": false,
+                            "chosen": null, "message": null}}""",
+        ).toDomain()
+        val drawing = checkNotNull(view.drawing)
+        assertNull(drawing.question)
+        assertFalse(drawing.asksEmotion)
+        assertEquals("1-1700000000", view.exposure)
+    }
+
+    @Test
+    fun `4_14 - la valoración de quien conduce llega con su aviso y falta si no hubo imitaciones`() {
+        val block = """, "practice": {
+            "exercises": [{"step_index": 0, "target_expression": "happiness", "conductor_rating": true,
+                           "conductor_stars": 4, "outcome": "achieved"}],
+            "totals": {"exercises": 1, "applied": 1, "achieved": 1, "skipped": 0, "stopped": 0,
+                       "feedback_visible": 0, "sentence": "Logró la expresión pedida en 1 de 1 ejercicio."},
+            "by_target": [{"target_expression": "happiness", "applied": 1, "achieved": 1}],
+            "notice": "$notice" %s}"""
+        val ratings = checkNotNull(
+            detail(
+                block.format(""", "conductor_ratings": {"items": 1, "rated": 1,
+                    "by_stars": [{"stars": 4, "count": 1}], "sentence": "Quien conduce valoró 1 de 1: 4 estrellas en 1.",
+                    "notice": "Es la valoración de quien conduce, no de EMOtv."}"""),
+            ).metrics.practice?.conductorRatings,
+        )
+        assertEquals("Quien conduce valoró 1 de 1: 4 estrellas en 1.", ratings.sentence)
+        assertEquals("Es la valoración de quien conduce, no de EMOtv.", ratings.notice)
+        assertNull(detail(block.format("")).metrics.practice?.conductorRatings)
     }
 
     @Test

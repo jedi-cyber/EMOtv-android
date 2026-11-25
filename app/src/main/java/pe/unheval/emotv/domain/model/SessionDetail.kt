@@ -28,7 +28,8 @@ sealed interface TimelineEvent {
 
     /**
      * Ejercicio de práctica: se pidió [targetExpression]; [outcome] es `null` si quedó en curso.
-     * Con [imitate], fue «Haz la misma cara», con la imagen como modelo.
+     * Con [imitate], fue «Haz la misma cara», con la imagen como modelo. Con [gameRound] (4.13),
+     * fue esa ronda del juego con cámara «Muestra la emoción».
      */
     data class Practice(
         override val time: Double?,
@@ -36,7 +37,33 @@ sealed interface TimelineEvent {
         val outcome: PracticeOutcome?,
         val secondsToAchieve: Double?,
         val imitate: Boolean = false,
+        val gameRound: Int? = null,
     ) : TimelineEvent
+
+    /**
+     * Paso de dibujo (4.5): solo si terminó y cómo; el dibujo nunca llega al servidor.
+     * [chosenExpression] solo existe en sesiones anteriores a 4.15, cuando se señalaba una emoción.
+     */
+    data class Drawing(
+        override val time: Double?,
+        val outcome: RecognitionOutcome?,
+        val chosenExpression: String?,
+    ) : TimelineEvent
+
+    /**
+     * Juego (4.6 y 4.7): [sentence] trae los contadores del servidor, sin puntaje. [faceSentence]
+     * (4.17) dice en cuántas rondas la cámara estimó la cara pedida; nulo si el juego no la pidió.
+     */
+    data class Game(
+        override val time: Double?,
+        val gameType: String?,
+        val skipped: Boolean,
+        val sentence: String?,
+        val faceSentence: String?,
+    ) : TimelineEvent
+
+    /** Paso «Usar el analizador» (4.16): sus capturas llegan como las de cualquier paso. */
+    data class Analyzer(override val time: Double?, val title: String, val skipped: Boolean) : TimelineEvent
 
     /** Paso «¿Qué emoción es?»: la imagen era de [targetExpression] y se eligió [chosenExpression]. */
     data class Recognition(

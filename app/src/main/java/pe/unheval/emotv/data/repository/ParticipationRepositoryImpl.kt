@@ -36,6 +36,12 @@ class ParticipationRepositoryImpl(private val api: ParticipationApi) : Participa
             is Outcome.Failure -> result
         }
 
+    override suspend fun drawingDone(token: String): Outcome<Unit> =
+        when (val result = apiCall { api.drawingDone(token) }) {
+            is Outcome.Success -> Outcome.Success(Unit)
+            is Outcome.Failure -> result
+        }
+
     override suspend fun stop(token: String): Outcome<Unit> =
         when (val result = apiCall { api.stop(token) }) {
             is Outcome.Success -> Outcome.Success(Unit)
