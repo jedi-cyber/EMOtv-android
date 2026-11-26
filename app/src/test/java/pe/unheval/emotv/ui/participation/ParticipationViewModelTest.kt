@@ -12,6 +12,7 @@ import pe.unheval.emotv.data.remote.ActivityDto
 import pe.unheval.emotv.data.remote.DrawingOptionDto
 import pe.unheval.emotv.data.remote.ParticipantDrawingDto
 import pe.unheval.emotv.data.remote.ParticipantStateDto
+import pe.unheval.emotv.data.remote.StimulusDto
 import pe.unheval.emotv.data.repository.toDomain
 import pe.unheval.emotv.domain.model.ActivityKind
 import pe.unheval.emotv.domain.model.AppError
@@ -27,6 +28,9 @@ private class FakeParticipation : ParticipationRepository {
     var view: () -> Outcome<ParticipantView> = { Outcome.Success(drawingView()) }
     var answerResult: Outcome<Unit> = Outcome.Success(Unit)
     var stopResult: Outcome<Unit> = Outcome.Success(Unit)
+    var doneResult: Outcome<Unit> = Outcome.Success(Unit)
+    var drawingDones = 0
+    var stimuli = 0
     val claimed = mutableListOf<String>()
     val answers = mutableListOf<Pair<String, String>>()
     var views = 0
@@ -36,10 +40,14 @@ private class FakeParticipation : ParticipationRepository {
     override suspend fun view(token: String): Outcome<ParticipantView> { views += 1; return view() }
     override suspend fun answer(token: String, expression: String): Outcome<Unit> =
         answerResult.also { answers += token to expression }
+    override suspend fun drawingDone(token: String): Outcome<Unit> = doneResult.also { drawingDones += 1 }
     override suspend fun stop(token: String): Outcome<Unit> = stopResult.also { stops += 1 }
     override suspend fun game(token: String, action: GameAction, expression: String?): Outcome<Unit> =
         Outcome.Success(Unit)
-    override suspend fun stimulus(token: String): Outcome<ByteArray> = Outcome.Success(ByteArray(0))
+    override suspend fun stimulus(token: String): Outcome<ByteArray> {
+        stimuli += 1
+        return Outcome.Success(byteArrayOf(1, 2, 3))
+    }
     override suspend fun gameOption(token: String, key: String): Outcome<ByteArray> =
         Outcome.Success(ByteArray(0))
 }
@@ -67,6 +75,18 @@ private fun stateDto(
 private fun drawingView(round: String = "0-1", finished: Boolean = false, chosen: String? = null,
                         message: String? = null) =
     stateDto(round = round, finished = finished, chosen = chosen, message = message).toDomain()
+
+/** Desde 4.15: sin pregunta ni emociones para señalar. Con [exposure], la imagen para mirar (4.14). */
+private fun currentDrawing(finished: Boolean = false, message: String? = null, exposure: String? = null) =
+    ParticipantStateDto(
+        phase = "stimuli",
+        activity = ActivityDto(kind = "drawing", name = "Dibuja una cara", number = 1, total = 1),
+        drawing = ParticipantDrawingDto(
+            instruction = "Dibuja una cara que muestre una emoción.",
+            question = null, options = emptyList(), round = "0-1", finished = finished, message = message,
+        ),
+        stimulus = exposure?.let { StimulusDto(it) },
+    ).toDomain()
 
 private fun server(status: Int) = Outcome.Failure(AppError.Server(status, null, null))
 
@@ -128,6 +148,53 @@ class ParticipationViewModelTest {
         assertEquals("Dibujaste alegría.", vm.active.view.drawing?.message)
         // El dibujo se borró de la memoria al terminar el paso.
         assertTrue(vm.board.strokes.isEmpty())
+    }
+
+    @Test
+    fun `desde 4_15 termine solo avisa que termino, sin preguntar la emocion`() = runTest {
+        fake.view = { Outcome.Success(currentDrawing()) }
+        val vm = linked()
+        assertFalse(checkNotNull(vm.active.view.drawing).asksEmotion)
+        vm.finishDrawing()
+        assertEquals(0, fake.drawingDones)                       // sin dibujo no se termina
+        vm.drawLine()
+        fake.view = { Outcome.Success(currentDrawing(finished = true, message = "Terminaste el dibujo.")) }
+        vm.finishDrawing()
+        assertEquals(1, fake.drawingDones)
+        assertTrue(fake.answers.isEmpty())                       // nunca se envía una emoción
+        assertEquals(DrawingPhase.Done, vm.active.phase)
+        assertEquals("Terminaste el dibujo.", vm.active.view.drawing?.message)
+        assertTrue(vm.board.strokes.isEmpty())
+    }
+
+    @Test
+    fun `desde 4_15 sin conexion al terminar se conserva el dibujo y un 409 cuenta como recibido`() = runTest {
+        fake.view = { Outcome.Success(currentDrawing()) }
+        val vm = linked()
+        vm.drawLine()
+        fake.doneResult = Outcome.Failure(AppError.Network)
+        vm.finishDrawing()
+        assertEquals(DrawingPhase.Drawing, vm.active.phase)
+        assertTrue(vm.active.sendFailed)
+        assertTrue(vm.board.hasDrawing)
+        fake.doneResult = server(409)
+        vm.finishDrawing()
+        assertEquals(2, fake.drawingDones)
+        assertEquals(DrawingPhase.Done, vm.active.phase)
+        assertTrue(vm.board.strokes.isEmpty())
+    }
+
+    @Test
+    fun `un dibujo con imagen la pide una vez y la suelta al terminar el paso`() = runTest {
+        fake.view = { Outcome.Success(currentDrawing(exposure = "0-1700000000")) }
+        val vm = linked()
+        assertEquals(1, fake.stimuli)
+        assertEquals("0-1700000000", vm.roundImage.value?.exposure)
+        vm.refresh()
+        assertEquals(1, fake.stimuli)                            // misma exposición: no se pide otra vez
+        fake.view = { Outcome.Success(stateDto(round = null).toDomain()) }
+        vm.refresh()
+        assertNull(vm.roundImage.value)
     }
 
     @Test

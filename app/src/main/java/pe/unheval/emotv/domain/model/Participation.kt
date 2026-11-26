@@ -7,7 +7,7 @@ data class ParticipantView(
     val activity: ParticipantActivity?,
     val drawing: DrawingStep?,
     val game: MatchingGame? = null,
-    /** Cambia con cada imagen: en un juego, con cada ronda. Nulo si no hay imagen. */
+    /** Cambia con cada imagen: en un juego, con cada ronda; en un dibujo, la imagen para mirar (4.14). Nulo si no hay imagen. */
     val exposure: String? = null,
     /** Apoyo del protocolo: pictogramas junto a cada emoción. */
     val pictograms: Boolean = false,
@@ -40,16 +40,21 @@ enum class ActivityKind {
     }
 }
 
-/** Un paso de dibujo: la consigna, la pregunta y las emociones para señalar. */
+/**
+ * Un paso de dibujo: la consigna y, solo con un servidor anterior a 4.15, la pregunta y
+ * las emociones para señalar. Desde 4.15 no se pregunta: [asksEmotion] es falso.
+ */
 data class DrawingStep(
     val instruction: String,
-    val question: String,
+    val question: String?,
     val options: List<EmotionOption>,
     val round: String,
     val finished: Boolean,
     val chosen: String?,
     val message: String?,
-)
+) {
+    val asksEmotion: Boolean get() = options.isNotEmpty()
+}
 
 data class EmotionOption(val key: String, val label: String)
 

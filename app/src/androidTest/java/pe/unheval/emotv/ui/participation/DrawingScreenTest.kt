@@ -55,6 +55,7 @@ private class FakeParticipation : ParticipationRepository {
         finished = true
         return Outcome.Success(Unit)
     }
+    override suspend fun drawingDone(token: String): Outcome<Unit> = Outcome.Success(Unit)
     override suspend fun stop(token: String): Outcome<Unit> = Outcome.Success(Unit)
     override suspend fun game(token: String, action: GameAction, expression: String?): Outcome<Unit> =
         Outcome.Success(Unit)

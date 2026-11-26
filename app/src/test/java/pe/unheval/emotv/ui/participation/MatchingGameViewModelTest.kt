@@ -79,6 +79,7 @@ private class FakeGameServer(val rounds: Int = 2, val type: String = "matching")
     override suspend fun view(token: String): Outcome<ParticipantView> =
         if (offline) Outcome.Failure(AppError.Network) else Outcome.Success(dto().toDomain())
     override suspend fun answer(token: String, expression: String): Outcome<Unit> = Outcome.Success(Unit)
+    override suspend fun drawingDone(token: String): Outcome<Unit> = Outcome.Success(Unit)
     override suspend fun stop(token: String): Outcome<Unit> = Outcome.Success(Unit)
     override suspend fun stimulus(token: String): Outcome<ByteArray> {
         stimulusCalls += 1

@@ -1,12 +1,15 @@
 package pe.unheval.emotv.ui.participation
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -29,6 +32,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -190,7 +194,7 @@ private fun ActiveView(
 
         if (drawing != null) {
             DrawingStepView(drawing, state, board, revision, actions, onClear = { confirmClear = true },
-                modifier = Modifier.weight(1f))
+                image = roundImage, modifier = Modifier.weight(1f))
         } else if (state.view.game != null) {
             MatchingGameView(
                 game = state.view.game,
@@ -239,32 +243,68 @@ private fun DrawingStepView(
     revision: Int,
     actions: ParticipationActions,
     onClear: () -> Unit,
+    image: RoundImage?,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(EmotvSpacing.Sm)) {
         when (state.phase) {
             DrawingPhase.Drawing, DrawingPhase.Choosing -> {
                 val drawingNow = state.phase == DrawingPhase.Drawing
-                Text(if (drawingNow) step.instruction else step.question, style = EmotvType.Subtitle,
+                Text(if (drawingNow) step.instruction else step.question.orEmpty(), style = EmotvType.Subtitle,
                     modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-                DrawingCanvas(
-                    board = board,
-                    revision = revision,
-                    enabled = drawingNow,
-                    description = stringResource(
-                        if (board.hasDrawing) R.string.drawing_canvas_with_drawing else R.string.drawing_canvas_empty),
-                    onStart = actions.onStrokeStart,
-                    onMove = actions.onStrokeMove,
-                    onEnd = actions.onStrokeEnd,
-                    onCancel = actions.onStrokeCancel,
-                    modifier = Modifier.fillMaxWidth().weight(1f).heightIn(min = 160.dp)
-                        .testTag(ParticipationTags.CANVAS),
-                )
+                val canvas: @Composable (Modifier) -> Unit = { canvasModifier ->
+                    DrawingCanvas(
+                        board = board,
+                        revision = revision,
+                        enabled = drawingNow && !state.sending,
+                        description = stringResource(
+                            if (board.hasDrawing) R.string.drawing_canvas_with_drawing else R.string.drawing_canvas_empty),
+                        onStart = actions.onStrokeStart,
+                        onMove = actions.onStrokeMove,
+                        onEnd = actions.onStrokeEnd,
+                        onCancel = actions.onStrokeCancel,
+                        modifier = canvasModifier.heightIn(min = 160.dp).testTag(ParticipationTags.CANVAS),
+                    )
+                }
+                val bitmap = rememberBitmap(image?.bytes)
+                if (bitmap == null) {
+                    canvas(Modifier.fillMaxWidth().weight(1f))
+                } else {
+                    // Con imagen (4.14): el lienzo a la izquierda y la imagen a la derecha si hay
+                    // espacio a lo ancho; si no, la imagen arriba, más pequeña.
+                    BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
+                        val picture: @Composable (Modifier) -> Unit = { pictureModifier ->
+                            Image(
+                                bitmap = bitmap,
+                                contentDescription = stringResource(R.string.drawing_image),
+                                contentScale = ContentScale.Fit,
+                                modifier = pictureModifier.testTag(ParticipationTags.DRAWING_IMAGE),
+                            )
+                        }
+                        val pictureMax = maxHeight / 3
+                        if (maxWidth > maxHeight || maxWidth >= WIDE_DRAWING) {
+                            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(EmotvSpacing.Sm)) {
+                                canvas(Modifier.weight(3f).fillMaxHeight())
+                                picture(Modifier.weight(2f).fillMaxHeight())
+                            }
+                        } else {
+                            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(EmotvSpacing.Sm)) {
+                                picture(Modifier.fillMaxWidth().heightIn(max = pictureMax))
+                                canvas(Modifier.fillMaxWidth().weight(1f))
+                            }
+                        }
+                    }
+                }
                 if (drawingNow) {
                     DrawingTools(board, revision, actions, onClear)
+                    if (state.sendFailed) {
+                        Callout(stringResource(R.string.drawing_finish_failed), null, CalloutTone.Error)
+                    }
                     PrimaryButton(stringResource(R.string.drawing_finish), actions.onFinishDrawing,
-                        Modifier.fillMaxWidth().testTag(ParticipationTags.FINISH), enabled = board.hasDrawing)
-                    Text(stringResource(R.string.drawing_privacy), style = EmotvType.Caption, color = EmotvColors.Slate)
+                        Modifier.fillMaxWidth().testTag(ParticipationTags.FINISH), enabled = board.hasDrawing,
+                        loading = state.sending)
+                    Text(stringResource(if (step.asksEmotion) R.string.drawing_privacy else R.string.drawing_privacy_finish),
+                        style = EmotvType.Caption, color = EmotvColors.Slate)
                 } else {
                     Row(
                         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -362,12 +402,16 @@ private fun ConfirmDialog(title: Int, body: Int, confirm: Int, onConfirm: () -> 
     )
 }
 
+/** Desde este ancho, el lienzo y la imagen van lado a lado aunque la pantalla esté vertical. */
+private val WIDE_DRAWING = 600.dp
+
 object ParticipationTags {
     const val CODE = "participation_code"
     const val CODE_ERROR = "participation_code_error"
     const val OPEN = "participation_open"
     const val ACTIVITY = "participation_activity"
     const val CANVAS = "drawing_canvas"
+    const val DRAWING_IMAGE = "drawing_image"
     const val FINISH = "drawing_finish"
     const val UNDO = "drawing_undo"
     const val CLEAR = "drawing_clear"

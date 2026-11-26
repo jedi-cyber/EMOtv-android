@@ -19,6 +19,7 @@ import pe.unheval.emotv.data.remote.StatisticsDto
 import pe.unheval.emotv.data.remote.StatisticsPracticeDto
 import pe.unheval.emotv.data.remote.StatisticsRecognitionDto
 import pe.unheval.emotv.domain.model.AbstractStimulusMetric
+import pe.unheval.emotv.domain.model.ConductorRatings
 import pe.unheval.emotv.domain.model.EmotionalStimulusMetric
 import pe.unheval.emotv.domain.model.ExpressionShare
 import pe.unheval.emotv.domain.model.MarkerKind
@@ -108,6 +109,7 @@ internal fun SessionDetailDto.toDomain(docente: Boolean = false): SessionDetail 
                         outcome = PracticeOutcome.fromApi(it.outcome),
                         secondsToAchieve = it.secondsToAchieve,
                         imitate = it.imitate,
+                        gameRound = it.gameRound,
                     ),
                 )
                 it.kind == "recognition" && it.targetExpression != null -> add(
@@ -122,6 +124,18 @@ internal fun SessionDetailDto.toDomain(docente: Boolean = false): SessionDetail 
                         secondsToAnswer = it.secondsToAnswer,
                     ),
                 )
+                it.kind == "drawing" -> add(
+                    TimelineEvent.Drawing(
+                        time = it.start,
+                        outcome = RecognitionOutcome.fromApi(it.outcome)
+                            ?: RecognitionOutcome.Skipped.takeIf { _ -> it.skipped },
+                        chosenExpression = it.chosenExpression,
+                    ),
+                )
+                it.kind == "game" -> add(
+                    TimelineEvent.Game(it.start, it.gameType, it.skipped, it.sentence, it.faceSentence),
+                )
+                it.kind == "analyzer" -> add(TimelineEvent.Analyzer(it.start, it.title, it.skipped))
                 else -> add(TimelineEvent.Stimulus(it.start, it.title, it.skipped))
             }
         }
@@ -160,6 +174,8 @@ internal fun PracticeDto.toDomain() = SessionPractice(
     totals = totals.toDomain(),
     byTarget = byTarget.toTargetResults(),
     notice = notice,
+    conductorRatings = conductorRatings?.takeIf { it.items > 0 }
+        ?.let { ConductorRatings(it.items, it.rated, it.sentence, it.notice) },
 )
 
 internal fun StatisticsDto.toDomain(scope: StatisticsScope) = SessionStatistics(

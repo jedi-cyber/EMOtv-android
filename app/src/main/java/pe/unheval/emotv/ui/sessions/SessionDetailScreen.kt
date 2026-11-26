@@ -22,6 +22,7 @@ import pe.unheval.emotv.domain.model.AbstractStimulusMetric
 import pe.unheval.emotv.domain.model.EmotionalStimulusMetric
 import pe.unheval.emotv.domain.model.MarkerKind
 import pe.unheval.emotv.domain.model.QuestionnaireMoment
+import pe.unheval.emotv.domain.model.RecognitionOutcome
 import pe.unheval.emotv.domain.model.SessionMetrics
 import pe.unheval.emotv.domain.model.SessionPractice
 import pe.unheval.emotv.domain.model.SessionRecognition
@@ -56,6 +57,7 @@ object SessionDetailTags {
     const val TIMELINE = "detail_timeline"
     const val PRACTICE = "detail_practice"
     const val RECOGNITION = "detail_recognition"
+    const val CONDUCTOR_RATINGS = "detail_conductor_ratings"
 }
 
 /**
@@ -182,6 +184,18 @@ private fun PracticeCard(practice: SessionPractice) {
         CardTitle(stringResource(R.string.practice_title))
         PracticeSentences(practice.totals)
         PracticeTargetChart(practice.byTarget)
+        practice.conductorRatings?.let { ratings ->
+            // «Juego: imita la cara»: la valoración de quien conduce, siempre con su aviso.
+            Column(
+                modifier = Modifier.testTag(SessionDetailTags.CONDUCTOR_RATINGS),
+                verticalArrangement = Arrangement.spacedBy(EmotvSpacing.Xxs),
+            ) {
+                Text(stringResource(R.string.practice_conductor_ratings_title), style = EmotvType.BodySmStrong,
+                    color = EmotvColors.Ink)
+                BodyText(ratings.sentence, EmotvColors.Charcoal)
+                if (ratings.notice.isNotEmpty()) Callout(title = ratings.notice, body = null, tone = CalloutTone.Neutral)
+            }
+        }
         if (practice.notice.isNotEmpty()) Callout(title = practice.notice, body = null, tone = CalloutTone.Neutral)
     }
 }
@@ -283,6 +297,9 @@ private fun TimelineRow(event: TimelineEvent) {
                     )
                 }
             }
+            if (event is TimelineEvent.Game) {
+                event.faceSentence?.let { Text(it, style = EmotvType.Caption, color = EmotvColors.Charcoal) }
+            }
         }
     }
 }
@@ -298,7 +315,21 @@ private fun timelineText(event: TimelineEvent): String = when (event) {
         if (event.skipped) R.string.timeline_stimulus_skipped else R.string.timeline_stimulus,
         event.title,
     )
-    is TimelineEvent.Practice -> practiceOutcomeText(event.targetExpression, event.outcome, event.secondsToAchieve, event.imitate)
+    is TimelineEvent.Practice -> practiceOutcomeText(
+        event.targetExpression, event.outcome, event.secondsToAchieve, event.imitate, event.gameRound)
+    is TimelineEvent.Drawing -> stringResource(R.string.timeline_drawing, drawingOutcomeText(event))
+    is TimelineEvent.Game -> stringResource(
+        R.string.timeline_game,
+        stringResource(gameName(event.gameType)),
+        when {
+            event.skipped && event.sentence == null -> stringResource(R.string.practice_outcome_skipped)
+            else -> event.sentence ?: stringResource(R.string.practice_outcome_none)
+        },
+    )
+    is TimelineEvent.Analyzer -> stringResource(
+        if (event.skipped) R.string.timeline_stimulus_skipped else R.string.timeline_analyzer,
+        event.title.ifEmpty { stringResource(R.string.timeline_analyzer_default) },
+    )
     is TimelineEvent.Recognition -> recognitionOutcomeText(
         event.title,
         event.targetExpression,
@@ -320,6 +351,26 @@ private fun timelineText(event: TimelineEvent): String = when (event) {
         MarkerKind.Note -> stringResource(R.string.timeline_marker_note, event.note.orEmpty())
         MarkerKind.Unknown -> stringResource(R.string.timeline_marker_other)
     }
+}
+
+/** Solo si terminó y cómo: el dibujo nunca llega al servidor y no hay respuesta correcta. */
+@Composable
+private fun drawingOutcomeText(event: TimelineEvent.Drawing): String = when (event.outcome) {
+    // Sesiones anteriores a 4.15: se conserva la emoción que la persona señaló.
+    RecognitionOutcome.Answered -> event.chosenExpression
+        ?.let { stringResource(R.string.drawing_outcome_indicated, expressionLabel(it)) }
+        ?: stringResource(R.string.drawing_outcome_finished)
+    RecognitionOutcome.TimedOut -> stringResource(R.string.practice_outcome_timed_out)
+    RecognitionOutcome.Skipped -> stringResource(R.string.practice_outcome_skipped)
+    RecognitionOutcome.Stopped -> stringResource(R.string.practice_outcome_stopped)
+    RecognitionOutcome.Unknown, null -> stringResource(R.string.practice_outcome_none)
+}
+
+/** Un `game_type` desconocido se muestra como «Juego». */
+private fun gameName(type: String?): Int = when (type) {
+    "matching" -> R.string.timeline_game_matching
+    "similar" -> R.string.timeline_game_similar
+    else -> R.string.timeline_game_other
 }
 
 @Composable

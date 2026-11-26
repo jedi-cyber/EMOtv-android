@@ -78,6 +78,7 @@ object DashboardTags {
     const val LIST = "dashboard_list"
     const val SESSIONS = "dashboard_sessions"
     const val STATISTICS = "dashboard_statistics"
+    const val REPORTS = "dashboard_reports"
     const val REVIEWS = "dashboard_reviews"
     const val ACCOUNT_MENU = "dashboard_account_menu"
     const val LOGOUT = "dashboard_logout"
@@ -91,6 +92,7 @@ data class DashboardActions(
     val onOpenSessions: () -> Unit,
     val onOpenStatistics: () -> Unit,
     val onOpenReviews: () -> Unit,
+    val onOpenReports: () -> Unit,
     val onLogout: () -> Unit,
 )
 
@@ -378,7 +380,7 @@ private fun RecentSessionsCard(sessions: List<SessionSummary>, zone: ZoneId, onO
     }
 }
 
-/** Barra fija abajo: todas las sesiones y las estadísticas. */
+/** Barra fija abajo: todas las sesiones, los reportes y las estadísticas. */
 @Composable
 private fun NavigationBar(actions: DashboardActions) {
     Box(
@@ -403,6 +405,13 @@ private fun NavigationBar(actions: DashboardActions) {
                 modifier = Modifier
                     .weight(1f)
                     .testTag(DashboardTags.SESSIONS),
+            )
+            SecondaryButton(
+                text = stringResource(R.string.dashboard_nav_reports),
+                onClick = actions.onOpenReports,
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag(DashboardTags.REPORTS),
             )
             SecondaryButton(
                 text = stringResource(R.string.dashboard_nav_statistics),

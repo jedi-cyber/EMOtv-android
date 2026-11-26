@@ -31,6 +31,8 @@ import pe.unheval.emotv.ui.participation.ParticipationViewModel
 import pe.unheval.emotv.ui.report.ReportActions
 import pe.unheval.emotv.ui.report.ReportScreen
 import pe.unheval.emotv.ui.report.ReportViewModel
+import pe.unheval.emotv.ui.reports.ReportsScreen
+import pe.unheval.emotv.ui.reports.ReportsViewModel
 import pe.unheval.emotv.ui.reviews.ReviewsScreen
 import pe.unheval.emotv.ui.reviews.ReviewsViewModel
 import pe.unheval.emotv.ui.sessions.SessionDetailScreen
@@ -52,6 +54,7 @@ import pe.unheval.emotv.ui.statistics.StatisticsViewModel
 @Serializable data class SessionDetailRoute(val sessionId: String)
 @Serializable data class ReportRoute(val reportId: String)
 @Serializable data object ReviewsRoute
+@Serializable data object ReportsRoute
 @Serializable data object StatisticsRoute
 // Pantalla de la persona: sin cuenta; el enlace vive solo en su ViewModel.
 @Serializable data object ParticipationRoute
@@ -177,6 +180,7 @@ fun EmotvNavHost(
                     onOpenSessions = { navController.navigate(SessionsRoute) },
                     onOpenStatistics = { navController.navigate(StatisticsRoute) },
                     onOpenReviews = { navController.navigate(ReviewsRoute) },
+                    onOpenReports = { navController.navigate(ReportsRoute) },
                     onLogout = viewModel::logOut,
                 ),
             )
@@ -241,6 +245,23 @@ fun EmotvNavHost(
                 state = state,
                 onRefresh = viewModel::refresh,
                 onOpenReport = { id -> navController.navigate(ReportRoute(id)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable<ReportsRoute> {
+            val viewModel: ReportsViewModel = viewModel(factory = ReportsViewModel.Factory)
+            AccountEffects(viewModel, toLogin)
+            val state by viewModel.uiState.collectAsStateWithLifecycle()
+            LaunchedEffect(state.openReport) {
+                val reportId = state.openReport ?: return@LaunchedEffect
+                navController.navigate(ReportRoute(reportId))
+                viewModel.onReportOpened()
+            }
+            ReportsScreen(
+                state = state,
+                onRefresh = viewModel::refresh,
+                onOpen = viewModel::open,
                 onBack = { navController.popBackStack() },
             )
         }

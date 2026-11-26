@@ -74,7 +74,13 @@ fun practiceBar(key: String, label: String, counts: PracticeCounts, prefix: Stri
 
 /** Texto de un ejercicio en la línea de tiempo: la expresión pedida y lo que se registró. */
 @Composable
-fun practiceOutcomeText(target: String, outcome: PracticeOutcome?, secondsToAchieve: Double?, imitate: Boolean = false): String {
+fun practiceOutcomeText(
+    target: String,
+    outcome: PracticeOutcome?,
+    secondsToAchieve: Double?,
+    imitate: Boolean = false,
+    gameRound: Int? = null,
+): String {
     val result = when (outcome) {
         PracticeOutcome.Achieved -> secondsToAchieve
             ?.let { stringResource(R.string.practice_outcome_achieved_in, formatSecondsDecimal(it)) }
@@ -84,6 +90,7 @@ fun practiceOutcomeText(target: String, outcome: PracticeOutcome?, secondsToAchi
         PracticeOutcome.Stopped -> stringResource(R.string.practice_outcome_stopped)
         PracticeOutcome.Unknown, null -> stringResource(R.string.practice_outcome_none)
     }
+    if (gameRound != null) return stringResource(R.string.timeline_camera_game, gameRound, expressionLabel(target), result)
     return stringResource(if (imitate) R.string.timeline_imitation else R.string.timeline_practice, expressionLabel(target), result)
 }
 

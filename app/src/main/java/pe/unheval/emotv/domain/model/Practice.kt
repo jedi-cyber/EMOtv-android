@@ -10,7 +10,16 @@ data class SessionPractice(
     val byTarget: List<PracticeTargetResult>,
     /** Aviso fijo sobre la precisión con niños; se muestra siempre junto a los ejercicios. */
     val notice: String,
+    /** «Juego: imita la cara» (4.14); `null` si el protocolo no lo tenía. */
+    val conductorRatings: ConductorRatings? = null,
 )
+
+/**
+ * Cuántas imitaciones valoró quien conduce y cuántas veces marcó cada número de estrellas. Es
+ * la valoración de quien conduce, no de EMOtv; el servidor no suma ni promedia. Se muestra
+ * [sentence] tal cual y [notice] siempre junto a ella.
+ */
+data class ConductorRatings(val items: Int, val rated: Int, val sentence: String, val notice: String)
 
 /** Prácticas agregadas de varias sesiones; no se desglosan por usuario ni por persona. */
 data class StatisticsPractice(

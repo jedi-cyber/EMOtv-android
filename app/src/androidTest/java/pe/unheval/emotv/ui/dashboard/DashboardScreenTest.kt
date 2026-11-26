@@ -78,6 +78,7 @@ class DashboardScreenTest {
                         onOpenSession = onOpenSession,
                         onOpenSessions = {},
                         onOpenStatistics = {},
+                        onOpenReports = {},
                         onOpenReviews = onOpenReviews,
                         onLogout = onLogout,
                     ),

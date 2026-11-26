@@ -90,7 +90,7 @@
     <string name="audience_child">Un niño o niña</string>
 
     <!-- Inicio: accesos y pendientes -->
-    <string name="dashboard_nav_sessions">Todas las sesiones</string>
+    <string name="dashboard_nav_sessions">Sesiones</string>
     <string name="dashboard_nav_statistics">Estadísticas</string>
     <plurals name="dashboard_pending_count">
         <item quantity="one">Tienes %d reporte por revisar</item>
@@ -211,6 +211,20 @@
     <string name="reviews_subtitle">Reportes que los usuarios de tu grupo enviaron a revisión.</string>
     <string name="reviews_empty">No tienes reportes por revisar.</string>
 
+    <!-- Módulo «Reportes» -->
+    <string name="reports_title">Reportes</string>
+    <string name="reports_subtitle">Los reportes de las sesiones que puedes ver, agrupados por su estado. Cada sesión se identifica solo por su código.</string>
+    <string name="reports_empty">Todavía no hay reportes. Un reporte se empieza desde el detalle de una sesión terminada.</string>
+    <string name="reports_group_changes_requested">Con observaciones (%1$d)</string>
+    <string name="reports_group_draft">En borrador (%1$d)</string>
+    <string name="reports_group_submitted">En revisión (%1$d)</string>
+    <string name="reports_group_approved">Aprobados (%1$d)</string>
+    <string name="reports_group_unknown">Otros (%1$d)</string>
+    <string name="reports_hint_changes_requested">El docente dejó observaciones; quien condujo la sesión corrige el texto y lo vuelve a enviar.</string>
+    <string name="reports_hint_draft">Todavía no se enviaron a revisión.</string>
+    <string name="reports_hint_submitted">Esperan la revisión del docente.</string>
+    <string name="dashboard_nav_reports">Reportes</string>
+
     <!-- Estadísticas agregadas -->
     <string name="statistics_title">Estadísticas</string>
     <string name="statistics_scope_group_hint">Sesiones de tu grupo. Tus sesiones de demostración no cuentan en las estadísticas.</string>
@@ -269,6 +283,20 @@
     <string name="practice_outcome_stopped">la sesión se detuvo</string>
     <string name="practice_outcome_none">sin resultado registrado</string>
     <string name="timeline_imitation">Haz la misma cara (%1$s): %2$s</string>
+    <string name="timeline_camera_game">Juego con cámara, ronda %1$d (%2$s): %3$s</string>
+    <!-- «Juego: imita la cara»: la valoración es de quien conduce, no de EMOtv -->
+    <string name="practice_conductor_ratings_title">Valoración de quien conduce</string>
+    <!-- Dibujo: solo si terminó; el dibujo no llega al servidor -->
+    <string name="timeline_drawing">Dibujo: %1$s</string>
+    <string name="drawing_outcome_finished">terminó el dibujo</string>
+    <string name="drawing_outcome_indicated">terminó el dibujo y señaló %1$s</string>
+    <!-- Juegos: contadores del servidor, sin puntaje -->
+    <string name="timeline_game">%1$s: %2$s</string>
+    <string name="timeline_game_matching">Juego de emparejar</string>
+    <string name="timeline_game_similar">Juego: busca la misma emoción</string>
+    <string name="timeline_game_other">Juego</string>
+    <string name="timeline_analyzer">%1$s</string>
+    <string name="timeline_analyzer_default">Expresiones con la cámara</string>
     <!-- «¿Qué emoción es?»: describe la respuesta, no valora a la persona -->
     <string name="recognition_title">Reconocimiento de emociones</string>
     <string name="recognition_by_target">Por emoción de la imagen</string>
@@ -332,6 +360,9 @@
     <string name="drawing_finish">Terminé</string>
     <string name="drawing_keep_drawing">Seguir dibujando</string>
     <string name="drawing_privacy">El dibujo se queda en esta pantalla: no se envía ni se guarda. Solo se registra la emoción que elijas.</string>
+    <string name="drawing_privacy_finish">El dibujo se queda en esta pantalla: no se envía ni se guarda. Solo se registra que terminaste.</string>
+    <string name="drawing_finish_failed">No se pudo avisar que terminaste. Toca «Terminé» otra vez o avisa a quien conduce la sesión.</string>
+    <string name="drawing_image">Imagen para mirar antes de dibujar</string>
     <string name="drawing_send_failed">No se pudo enviar tu elección. Intenta de nuevo o avisa a quien conduce la sesión.</string>
     <string name="drawing_time_up">Terminó el tiempo para dibujar.</string>
     <string name="drawing_received">Listo.</string>

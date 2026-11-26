@@ -130,6 +130,13 @@ data class StimulusLaneDto(
     val imitate: Boolean = false,
     @SerialName("chosen_expression") val chosenExpression: String? = null,
     @SerialName("seconds_to_answer") val secondsToAnswer: Double? = null,
+    /** Desde 4.13: el ejercicio es una ronda del juego con cámara «Muestra la emoción». */
+    @SerialName("game_round") val gameRound: Int? = null,
+    /** Con `kind` `game` (4.6 y 4.7): el tipo de juego y la frase con sus contadores. */
+    @SerialName("game_type") val gameType: String? = null,
+    val sentence: String? = null,
+    /** Desde 4.17, «Reconoce y luego muéstrala»; nulo si el juego no lo pidió. */
+    @SerialName("face_sentence") val faceSentence: String? = null,
 )
 
 @Serializable
@@ -193,6 +200,17 @@ data class PracticeDto(
     val exercises: List<PracticeExerciseDto> = emptyList(),
     val totals: PracticeTotalsDto = PracticeTotalsDto(),
     @SerialName("by_target") val byTarget: List<PracticeRowDto> = emptyList(),
+    val notice: String = "",
+    /** Desde 4.14, solo con «Juego: imita la cara»: cuántas veces quien conduce marcó cada número de estrellas. */
+    @SerialName("conductor_ratings") val conductorRatings: ConductorRatingsDto? = null,
+)
+
+/** La valoración es de quien conduce, no de EMOtv. Solo cuenta; no hay sumas ni promedios. */
+@Serializable
+data class ConductorRatingsDto(
+    val items: Int = 0,
+    val rated: Int = 0,
+    val sentence: String = "",
     val notice: String = "",
 )
 

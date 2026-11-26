@@ -192,7 +192,7 @@ private fun GameOptionButton(
 
 /** Decodifica la imagen en memoria, reducida a un tamaño de pantalla. */
 @Composable
-private fun rememberBitmap(bytes: ByteArray?): ImageBitmap? = remember(bytes) {
+internal fun rememberBitmap(bytes: ByteArray?): ImageBitmap? = remember(bytes) {
     if (bytes == null) return@remember null
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)

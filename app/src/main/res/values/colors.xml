@@ -2,7 +2,6 @@
 <resources>
     <!-- Solo para recursos XML (splash y ventana). En Compose se usa ui/theme/Color.kt. -->
     <color name="emotv_navy">#FF0A1530</color>
-    <color name="emotv_frame_on_dark">#FFB6ADF7</color>
     <color name="emotv_on_dark">#FFFFFFFF</color>
     <color name="emotv_surface">#FFF6F5F4</color>
 </resources>
