@@ -22,3 +22,7 @@ keystore.properties
 # Estado local de Android Studio y Claude Code.
 /.idea/deviceManager.xml
 /.idea/claudeCodeTabState.xml
+
+# APK: se publican en GitHub Releases, no en el repositorio
+*.apk
+*.aab
