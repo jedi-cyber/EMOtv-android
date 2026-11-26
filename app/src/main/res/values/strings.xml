@@ -90,7 +90,7 @@
     <string name="audience_child">Un niño o niña</string>
 
     <!-- Inicio: accesos y pendientes -->
-    <string name="dashboard_nav_sessions">Todas las sesiones</string>
+    <string name="dashboard_nav_sessions">Sesiones</string>
     <string name="dashboard_nav_statistics">Estadísticas</string>
     <plurals name="dashboard_pending_count">
         <item quantity="one">Tienes %d reporte por revisar</item>
@@ -210,6 +210,20 @@
     <string name="reviews_title">Pendientes</string>
     <string name="reviews_subtitle">Reportes que los usuarios de tu grupo enviaron a revisión.</string>
     <string name="reviews_empty">No tienes reportes por revisar.</string>
+
+    <!-- Módulo «Reportes» -->
+    <string name="reports_title">Reportes</string>
+    <string name="reports_subtitle">Los reportes de las sesiones que puedes ver, agrupados por su estado. Cada sesión se identifica solo por su código.</string>
+    <string name="reports_empty">Todavía no hay reportes. Un reporte se empieza desde el detalle de una sesión terminada.</string>
+    <string name="reports_group_changes_requested">Con observaciones (%1$d)</string>
+    <string name="reports_group_draft">En borrador (%1$d)</string>
+    <string name="reports_group_submitted">En revisión (%1$d)</string>
+    <string name="reports_group_approved">Aprobados (%1$d)</string>
+    <string name="reports_group_unknown">Otros (%1$d)</string>
+    <string name="reports_hint_changes_requested">El docente dejó observaciones; quien condujo la sesión corrige el texto y lo vuelve a enviar.</string>
+    <string name="reports_hint_draft">Todavía no se enviaron a revisión.</string>
+    <string name="reports_hint_submitted">Esperan la revisión del docente.</string>
+    <string name="dashboard_nav_reports">Reportes</string>
 
     <!-- Estadísticas agregadas -->
     <string name="statistics_title">Estadísticas</string>
