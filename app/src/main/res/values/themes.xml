@@ -7,8 +7,9 @@
 
     <!-- Pantalla de carga del sistema (androidx.core:core-splashscreen, desde API 26). -->
     <style name="Theme.EMOtv.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/emotv_navy</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_emotv_logo</item>
+        <!-- El ícono del aplicativo sobre blanco, como en el lanzador. -->
+        <item name="windowSplashScreenBackground">@color/emotv_on_dark</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
         <item name="postSplashScreenTheme">@style/Theme.EMOtv</item>
     </style>
 </resources>

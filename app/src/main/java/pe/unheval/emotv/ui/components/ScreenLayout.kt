@@ -21,7 +21,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -30,7 +29,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import pe.unheval.emotv.R
 import pe.unheval.emotv.ui.theme.EmotvColors
-import pe.unheval.emotv.ui.theme.EmotvShapes
 import pe.unheval.emotv.ui.theme.EmotvSpacing
 import pe.unheval.emotv.ui.theme.EmotvType
 
@@ -78,20 +76,12 @@ fun PageSubtitle(text: String, modifier: Modifier = Modifier) {
     Text(text = text, style = EmotvType.Subtitle, color = EmotvColors.Slate, modifier = modifier)
 }
 
-/** Logo de EMOtv sobre azul marino. */
+/** Logo de EMOtv: el círculo con el corazón, el mismo del ícono del aplicativo. */
 @Composable
 fun EmotvLogo(modifier: Modifier = Modifier, size: Dp = 96.dp) {
-    Box(
-        modifier = modifier
-            .size(size)
-            .clip(EmotvShapes.Lg)
-            .background(EmotvColors.Navy),
-        contentAlignment = Alignment.Center,
-    ) {
-        Image(
-            painter = painterResource(R.drawable.ic_emotv_logo),
-            contentDescription = stringResource(R.string.logo_description),
-            modifier = Modifier.size(size),
-        )
-    }
+    Image(
+        painter = painterResource(R.drawable.emotv_logo),
+        contentDescription = stringResource(R.string.logo_description),
+        modifier = modifier.size(size),
+    )
 }
